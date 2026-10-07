@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>捜索状況共有</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+<style>
+:root{--bg:#ece8d5;--panel:#f6f3e6;--ink:#1e1c16;--line:#7c7862;--hi:#1e1c16;--hi-ink:#f6f3e6;--warn:#b0361f;--mark:#c0271a;--st0:#c0271a;--st1:#1f7a3a;--st2:#7a776a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1c1b17;--panel:#2a2823;--ink:#eee9d2;--line:#8f8b76;--hi:#eee9d2;--hi-ink:#1c1b17;--warn:#ff9a80;--mark:#ff8a70;--st0:#ff8a70;--st1:#6fcf7f;--st2:#a29e8a}}
+:root[data-theme="dark"]{--bg:#1c1b17;--panel:#2a2823;--ink:#eee9d2;--line:#8f8b76;--hi:#eee9d2;--hi-ink:#1c1b17;--warn:#ff9a80;--mark:#ff8a70;--st0:#ff8a70;--st1:#6fcf7f;--st2:#a29e8a}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+*{box-sizing:border-box}
+body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:400 15px/1.6 "Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;overflow:hidden}
+.mono{font-family:"Share Tech Mono",ui-monospace,monospace;letter-spacing:.06em}
+button,input{font:inherit;color:inherit}
+button{background:none;border:1px solid var(--ink);padding:.55em 1.1em;cursor:pointer;position:relative}
+button:hover,button:focus-visible,button.on{background:var(--hi);color:var(--hi-ink);outline:none}
+button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+button.solid{background:var(--hi);color:var(--hi-ink)}
+button.solid:hover{background:none;color:var(--ink)}
+input{width:100%;background:none;border:0;border-bottom:1px solid var(--ink);padding:.5em .1em;border-radius:0}
+input:focus{outline:none;background:var(--panel)}
+label{display:block;font-size:12px;opacity:.75;margin:1.1em 0 0}
+.hide{display:none!important}
+#auth{height:100%;display:grid;place-items:center;padding:20px;background-image:repeating-linear-gradient(135deg,transparent 0 6px,rgba(120,116,96,.08) 6px 7px)}
+.box{width:min(380px,100%);background:var(--panel);border:1px solid var(--ink);padding:28px 26px 24px;position:relative}
+.box::before{content:"";position:absolute;inset:4px;border:1px solid var(--line);pointer-events:none}
+.box h1{font-size:19px;margin:0 0 18px;font-weight:700}
+.box h1::before,header h1::before{content:"■";font-size:.6em;margin-right:.6em;vertical-align:.15em}
+.tabs{display:flex;gap:6px;margin-bottom:6px}
+.tabs button{flex:1;border-color:var(--line)}
+.err{color:var(--warn);min-height:1.5em;font-size:13px;margin-top:.8em}
+.box .go{width:100%;margin-top:.6em}
+#app{height:100%;display:flex;flex-direction:column}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--ink);box-shadow:0 3px 0 -2px var(--bg),0 4px 0 -2px var(--ink);background:var(--panel);position:relative;z-index:2}
+header h1{font-size:16px;margin:0;font-weight:700}
+header .r{display:flex;align-items:center;gap:10px;font-size:13px}
+header button{padding:.3em .8em;font-size:12px}
+#stage{position:relative;flex:1;min-height:0}
+#map{width:100%;height:100%;background:var(--bg);z-index:0}
+.leaflet-div-icon{background:none;border:none}
+.pin-ic text{fill:var(--ink);font-family:"Share Tech Mono",monospace;paint-order:stroke;stroke:var(--panel);stroke-width:3px;stroke-linejoin:round;font-weight:700}
+.leaflet-control-attribution{background:var(--panel)!important;color:var(--ink)!important;font-size:10px}
+.leaflet-control-attribution a{color:var(--ink)!important}
+.leaflet-control-scale-line{background:var(--panel)!important;border-color:var(--ink)!important;color:var(--ink)!important}
+:root[data-theme="dark"] .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9)}}
+.cnt{position:absolute;left:12px;top:12px;background:var(--panel);border:1px solid var(--ink);padding:6px 10px;display:flex;gap:14px;font-size:13px;z-index:1001}
+.cnt span{display:flex;align-items:center;gap:6px}
+.zoom{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:6px;z-index:1001}
+.zoom button{width:38px;height:38px;padding:0;background:var(--panel)}
+.zoom button:hover{background:var(--hi)}
+.hint{position:absolute;left:50%;top:64px;transform:translateX(-50%);background:var(--hi);color:var(--hi-ink);padding:4px 14px;font-size:13px;pointer-events:none;z-index:1001}
+.bar{display:flex;gap:10px;padding:12px 14px;background:var(--panel);border-top:1px solid var(--ink)}
+.bar button{flex:1;padding:.8em 0}
+.sheet{position:absolute;left:0;right:0;bottom:0;max-height:88%;overflow:auto;background:var(--panel);border-top:1px solid var(--ink);padding:16px 18px calc(16px + env(safe-area-inset-bottom,0px));z-index:1002;box-shadow:0 -6px 0 -3px var(--bg)}
+@media (min-width:720px){.sheet{left:auto;width:380px;top:0;max-height:none;border-left:1px solid var(--ink);border-top:0;box-shadow:none}}
+.sheet h2{font-size:15px;margin:0 0 4px;font-weight:700}
+.sheet .co{font-size:12px;opacity:.7}
+.seg{display:flex;gap:6px;margin-top:6px}
+.seg button{flex:1;padding:.5em 0;font-size:14px}
+.row{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+.step{display:flex;align-items:center;gap:10px}
+.step button{width:34px;height:34px;padding:0}
+.step b{min-width:1.6em;text-align:center;font-size:18px}
+.acts{display:flex;gap:8px;margin-top:20px}
+.acts button{flex:1}
+.acts .del{flex:0 0 auto;color:var(--warn);border-color:var(--warn)}
+.acts .del:hover{background:var(--warn);color:var(--hi-ink)}
+.toast{position:absolute;left:50%;bottom:86px;transform:translateX(-50%);background:var(--hi);color:var(--hi-ink);padding:6px 16px;font-size:13px;z-index:1004;white-space:nowrap}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(12px);opacity:0}}}
+body{font-size:16px}
+label{opacity:.9;font-size:13px;font-weight:700}
+button{border-width:2px;font-weight:700;min-height:44px}
+header button{min-height:36px}
+.zoom button{width:44px;height:44px}
+.step button{width:44px;height:44px}
+.bar button{font-size:16px}
+input{font-size:16px;border-bottom-width:2px}
+#who{max-width:9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sheet{padding:0 18px calc(16px + env(safe-area-inset-bottom,0px))}
+.sh-top{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;background:var(--panel);padding:12px 0 10px;border-bottom:2px solid var(--ink)}
+.sh-top h2{flex:1;margin:0}
+.sh-top button{padding:.4em 1em}
+.acts .del{flex:1}
+.modal{position:fixed;inset:0;z-index:1005;display:grid;place-items:center;padding:20px;background:rgba(20,18,12,.55)}
+.qr{background:#fff;padding:8px;width:fit-content;margin:6px auto 14px;border:2px solid var(--ink)}
+.qr svg{display:block;width:min(220px,55vw);height:auto}
+.mrow{display:flex;gap:8px;margin-top:12px}
+.mrow button{flex:1}
+.cnt span{cursor:pointer}
+.cnt span:hover{opacity:.75}
+.listpanel{position:absolute;left:12px;top:58px;width:220px;max-height:60%;overflow:auto;background:var(--panel);border:2px solid var(--ink);z-index:1003}
+.lp-top{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border-bottom:2px solid var(--ink);position:sticky;top:0;background:var(--panel)}
+.lp-top b{font-size:13px}
+.lp-top button{padding:.2em .7em;font-size:12px;min-height:auto}
+.lp-row{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);padding:8px 10px;background:none;font-size:13px}
+.lp-row:hover{background:var(--hi);color:var(--hi-ink)}
+.lp-empty{padding:10px;opacity:.7;font-size:13px}
+/* ---------- v2 ---------- */
+.tl{position:absolute;left:12px;top:12px;display:flex;flex-direction:column;align-items:flex-start;gap:6px;z-index:1001;max-width:calc(100% - 80px)}
+.tl .cnt{position:static;flex-wrap:wrap}
+.tl2{display:flex;gap:6px;align-items:stretch;flex-wrap:wrap}
+select{font:inherit;font-size:13px;font-weight:700;color:var(--ink);background:var(--panel);border:2px solid var(--ink);padding:4px 6px;border-radius:0;max-width:11em}
+.net{display:flex;align-items:center;gap:6px;background:var(--panel);border:2px solid var(--ink);padding:3px 8px;font-size:12px}
+.net i{width:9px;height:9px;border-radius:50%;background:var(--st1);display:inline-block}
+.net.off i{background:var(--warn)}
+.net.off{color:var(--warn);border-color:var(--warn)}
+.net b{color:var(--warn)}
+.listpanel{top:auto}
+.srch{position:absolute;left:12px;right:12px;top:12px;max-width:440px;background:var(--panel);border:2px solid var(--ink);z-index:1003;padding:10px 12px;max-height:70%;overflow:auto}
+.srch form{display:flex;gap:8px;align-items:flex-end}
+.srch form button{flex:0 0 auto;min-height:40px;padding:.3em .9em}
+.srch .msg{font-size:13px;opacity:.75;padding:8px 2px 0}
+.srch .lp-row{padding:10px 4px}
+textarea{width:100%;font:inherit;font-size:16px;color:inherit;background:none;border:2px solid var(--line);padding:.4em;border-radius:0;min-height:4.5em;resize:vertical}
+textarea:focus{outline:none;border-color:var(--ink);background:var(--bg)}
+input[type=datetime-local]{font-size:15px;padding:.3em 0}
+.two{display:flex;gap:12px}
+.two>div{flex:1;min-width:0}
+.trow{display:flex;gap:6px;align-items:flex-end}
+.trow input{flex:1;min-width:0}
+.trow button,.lbtn{min-height:34px;padding:.15em .7em;font-size:13px;flex:0 0 auto}
+.lrow{display:flex;justify-content:space-between;align-items:flex-end;gap:8px}
+.lrow label{margin-top:1.1em}
+.warnbox{margin-top:10px;border:2px solid var(--warn);color:var(--warn);padding:8px 10px;font-size:13px}
+.warnbox button{display:block;width:100%;text-align:left;margin-top:6px;min-height:36px;padding:.2em .6em;font-size:13px;color:var(--ink);border-color:var(--warn)}
+.meta{font-size:12px;opacity:.8;margin-top:6px;line-height:1.5}
+.tag{display:inline-block;border:1px dashed var(--warn);color:var(--warn);font-size:11px;padding:0 6px;margin-left:6px;vertical-align:2px}
+.bar button{font-size:15px;line-height:1.25;padding:.6em .2em}
+@media (max-width:460px){header h1{display:none}header .r{gap:6px;width:100%;justify-content:flex-end}}
+</style>
+</head>
+<body>
+
+<section id="auth">
+  <div class="box">
+    <h1 data-i18n="title"></h1>
+    <div class="tabs"><button id="tLogin" class="on" type="button" data-i18n="login"></button><button id="tReg" type="button" data-i18n="register"></button></div>
+    <div id="fTeam" class="hide"><label for="team" data-i18n="team"></label><input id="team" autocomplete="organization"></div>
+    <label for="uid" data-i18n="id"></label><input id="uid" autocomplete="username" autocapitalize="none">
+    <label for="pw" data-i18n="password"></label><input id="pw" type="password" autocomplete="current-password">
+    <div class="err" id="err" role="alert"></div>
+    <button class="solid go" id="go" type="button"></button><button class="go" id="shA" type="button" style="border-color:var(--line)" data-i18n="shareQR"></button>
+    <button class="go lg" type="button" style="border-color:var(--line)"></button>
+  </div>
+</section>
+
+<section id="app" class="hide">
+  <header><h1 data-i18n="title"></h1><div class="r"><span id="who" class="mono"></span><button class="lg" type="button"></button><button id="th" type="button" data-i18n="theme"></button><button id="out" type="button" data-i18n="logout"></button></div></header>
+  <div id="stage">
+    <div id="map" data-i18n-aria="map"></div>
+    <div class="tl">
+      <div class="cnt" id="cnt"></div>
+      <div class="tl2">
+        <select id="tf" data-i18n-aria="filterLabel"></select>
+        <div class="net" id="net" role="status" aria-live="polite"></div>
+      </div>
+    </div>
+    <div class="zoom"><button id="zi" type="button" data-i18n-aria="zoomIn">＋</button><button id="zo" type="button" data-i18n-aria="zoomOut">－</button><button id="zc" type="button" data-i18n-aria="toMe">◎</button><button id="zq" type="button" data-i18n-aria="shareQR" class="mono">QR</button></div>
+    <div class="hint hide" id="hint" data-i18n="tapMap"></div>
+  </div>
+  <div class="bar" id="bar"><button class="solid" id="here" type="button" data-i18n="pinHere"></button><button id="pick" type="button" data-i18n="pickMap"></button><button id="addr" type="button" data-i18n="byAddress"></button></div>
+</section>
+
+<div class="modal hide" id="modal"><div class="box"><h1 data-i18n="share"></h1><div class="qr" id="qrbox"></div><input id="su" class="mono" readonly value="" aria-label="URL"><div class="mrow"><button id="sc" type="button" data-i18n="copy"></button><button class="solid" id="sx" type="button" data-i18n="close"></button></div></div></div>
+<script src="/vendor/qrcodejs/qrcode.min.js"></script>
+<script src="/vendor/leaflet/leaflet.js"></script>
+<script>
+(function(){
+"use strict";
+var $=function(i){return document.getElementById(i)};
+var $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s))};
+var mem={};
+var S={get:function(k){try{var v=localStorage.getItem(k);return v?JSON.parse(v):(mem[k]||null)}catch(e){return mem[k]||null}},
+ set:function(k,v){mem[k]=v;try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+var esc=function(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})};
+
+/* ---------- i18n（日本語 / English） ---------- */
+var I18N={
+ja:{title:"捜索状況共有",login:"ログイン",register:"新規登録",team:"隊名",id:"ID",password:"パスワード",startReg:"登録して開始",
+ shareQR:"QRで共有",theme:"昼/夜",logout:"ログアウト",map:"地図",zoomIn:"拡大",zoomOut:"縮小",toMe:"現在地へ",tapMap:"地図をタップ",
+ pinHere:"現在地にピン",pickMap:"地図で選ぶ",byAddress:"住所で探す",share:"共有",copy:"コピー",copied:"コピー済み",close:"閉じる",save:"保存",del:"削除",
+ status:"状況",st0:"未捜索",st1:"捜索中",st2:"捜索済み",st2s:"済",entry:"進入",goYes:"可",goNo:"不可",missing:"行方不明 M",live:"生存 L",dead:"死亡 D",dec:"減らす",inc:"増やす",
+ name:"建物名",namePh:"B棟",floor:"階",floorPh:"1F / 1〜3F",address:"住所",addrPh:"自動で入力されます",addrGet:"住所取得",
+ hazard:"危険情報",hazardPh:"ガス漏れ など",note:"メモ",notePh:"要救助者の位置、進入経路 など",startT:"捜索開始",endT:"捜索終了",now:"今",
+ newPin:"ピンを設置",editPin:"ピンを編集",created:"作成",updated:"最終更新",unsent:"未送信",
+ dupWarn:"30m以内に既存のピンがあります。同じ建物を重複して捜索していないか確認してください",
+ nameReq:"建物名を入力してください",saved:"保存しました",saveFail:"保存に失敗しました",deleted:"削除しました",delFail:"削除に失敗しました",
+ delForbidden:"他の隊のピンは削除できません",delOffline:"オフライン中は削除できません",queued:"オフライン：接続が戻ったら自動で送信します",sent:"未送信のデータを送信しました",
+ gpsFallback:"GPS不可：地図の中心に設置",gpsFail:"GPSを取得できません",loadFail:"ピンを取得できませんでした",sessionExpired:"セッションが切れました。再度ログインしてください",
+ teamReq:"隊名を入力してください",idRule:"IDは英数字3〜20文字",pwRule:"パスワードは6文字以上",idTaken:"このIDは使われています",badCred:"IDまたはパスワードが違います",
+ missingIn:"入力に不足があります",noServer:"サーバーに接続できません。通信状況を確認してください",none:"該当なし",unnamed:"（名称未設定）",
+ synced:"同期 {time}",offline:"オフライン",pending:"未送信 {n}件",allTeams:"全隊",myTeam:"自隊",filterLabel:"表示する隊",
+ addrSearchPh:"住所・施設名",search:"検索",searching:"検索中…",noResult:"見つかりませんでした",geoFail:"住所検索に失敗しました",
+ otherUpdated:"このピンは他のユーザーに更新されました。保存すると上書きされます",qrFail:"QRコードを読み込めませんでした（インターネット接続を確認）",
+ lang:"EN",locale:"ja-JP"},
+en:{title:"Search Status Share",login:"Log in",register:"Sign up",team:"Team",id:"ID",password:"Password",startReg:"Sign up & start",
+ shareQR:"Share via QR",theme:"Day/Night",logout:"Log out",map:"Map",zoomIn:"Zoom in",zoomOut:"Zoom out",toMe:"My location",tapMap:"Tap the map",
+ pinHere:"Pin my location",pickMap:"Pick on map",byAddress:"Find address",share:"Share",copy:"Copy",copied:"Copied",close:"Close",save:"Save",del:"Delete",
+ status:"Status",st0:"Not searched",st1:"Searching",st2:"Searched",st2s:"Done",entry:"Entry",goYes:"GO",goNo:"NO GO",missing:"Missing M",live:"Alive L",dead:"Dead D",dec:"Decrease",inc:"Increase",
+ name:"Building",namePh:"Block B",floor:"Floor",floorPh:"1F / 1-3F",address:"Address",addrPh:"Filled in automatically",addrGet:"Look up",
+ hazard:"Hazards",hazardPh:"e.g. gas leak",note:"Notes",notePh:"Victim location, access route, etc.",startT:"Search start",endT:"Search end",now:"Now",
+ newPin:"New pin",editPin:"Edit pin",created:"Created",updated:"Last updated",unsent:"Unsent",
+ dupWarn:"There are pins within 30 m. Make sure this building isn't being searched twice",
+ nameReq:"Enter a building name",saved:"Saved",saveFail:"Couldn't save",deleted:"Deleted",delFail:"Couldn't delete",
+ delForbidden:"You can't delete another team's pin",delOffline:"Can't delete while offline",queued:"Offline: will be sent automatically when back online",sent:"Unsent data was sent",
+ gpsFallback:"No GPS: placed at map centre",gpsFail:"Couldn't get GPS",loadFail:"Couldn't load pins",sessionExpired:"Session expired. Please log in again",
+ teamReq:"Enter a team name",idRule:"ID: 3–20 letters, digits, _ or -",pwRule:"Password: at least 6 characters",idTaken:"That ID is already taken",badCred:"Wrong ID or password",
+ missingIn:"Some fields are missing",noServer:"Can't reach the server. Check your connection",none:"None",unnamed:"(unnamed)",
+ synced:"Synced {time}",offline:"Offline",pending:"{n} unsent",allTeams:"All teams",myTeam:"My team",filterLabel:"Team filter",
+ addrSearchPh:"Address or place",search:"Search",searching:"Searching…",noResult:"No results",geoFail:"Address search failed",
+ otherUpdated:"Someone else updated this pin. Saving will overwrite their changes",qrFail:"Couldn't load the QR code (check your connection)",
+ lang:"日本語",locale:"en-GB"}};
+var lang=S.get("ss_lang")==="en"?"en":"ja";
+function t(k,o){var s=I18N[lang][k];if(s==null)s=I18N.ja[k]!=null?I18N.ja[k]:k;
+  return o?s.replace(/\{(\w+)\}/g,function(_,n){return o[n]}):s}
+function fmtTime(ms){if(!ms)return"";try{return new Date(ms).toLocaleString(t("locale"),{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"})}catch(e){return new Date(ms).toLocaleString()}}
+function applyI18n(){
+  document.documentElement.lang=lang;document.title=t("title");
+  $$("[data-i18n]").forEach(function(el){el.textContent=t(el.getAttribute("data-i18n"))});
+  $$("[data-i18n-aria]").forEach(function(el){el.setAttribute("aria-label",t(el.getAttribute("data-i18n-aria")))});
+  $$(".lg").forEach(function(el){el.textContent=t("lang")});
+  setMode(mode);
+  if(user){render();renderNet();if(draft){collectForm();openSheet(draft)}if($("srch"))openSearch()}
+}
+$$(".lg").forEach(function(el){el.onclick=function(){lang=lang==="ja"?"en":"ja";S.set("ss_lang",lang);applyI18n()}});
+
+/* ---------- API ---------- */
+function api(method,url,body){
+  var h={"Content-Type":"application/json"};
+  if(user&&user.token)h.Authorization="Bearer "+user.token;
+  return fetch(url,{method:method,headers:h,body:body?JSON.stringify(body):undefined})
+    .then(function(r){return r.json()["catch"](function(){return{}}).then(function(j){j._status=r.status;if(!r.ok)return Promise.reject(j);return j})},
+      function(){return Promise.reject({_net:true})});
+}
+
+/* ---------- auth ---------- */
+var mode="login";
+var ERR_MSG={id_taken:"idTaken",invalid_id:"idRule",weak_password:"pwRule",invalid_credentials:"badCred",missing:"missingIn"};
+function setMode(m){mode=m;$("tLogin").classList.toggle("on",m==="login");$("tReg").classList.toggle("on",m==="reg");
+  $("fTeam").classList.toggle("hide",m!=="reg");$("go").textContent=m==="login"?t("login"):t("startReg");
+  $("pw").autocomplete=m==="login"?"current-password":"new-password";$("err").textContent=""}
+$("tLogin").onclick=function(){setMode("login")};$("tReg").onclick=function(){setMode("reg")};
+function submit(){
+  var id=$("uid").value.trim(),pw=$("pw").value,team=$("team").value.trim();
+  if(mode==="reg"){
+    if(!team)return fail(t("teamReq"));
+    if(!/^[A-Za-z0-9_-]{3,20}$/.test(id))return fail(t("idRule"));
+    if(pw.length<6)return fail(t("pwRule"));
+    $("go").disabled=true;
+    api("POST","/api/register",{id:id,password:pw,team:team}).then(enter,authErr)["finally"](function(){$("go").disabled=false});
+  }else{
+    $("go").disabled=true;
+    api("POST","/api/login",{id:id,password:pw}).then(enter,authErr)["finally"](function(){$("go").disabled=false});
+  }
+}
+function authErr(e){fail(e&&ERR_MSG[e.error]?t(ERR_MSG[e.error]):t("noServer"))}
+function fail(m){$("err").textContent=m}
+$("go").onclick=submit;
+["uid","pw","team"].forEach(function(i){$(i).addEventListener("keydown",function(e){if(e.key==="Enter")submit()})});
+
+/* ---------- state ---------- */
+var user=null,pins=[],gps=null,placing=false,draft=null;
+var c={lat:35.6812,lng:139.7671};
+var online=true,lastSync=0,pollTimer=null,teamFilter=S.get("ss_teamf")||"all";
+var POLL_MS=10000,DUP_M=30;
+
+function enter(u){
+  user={id:u.id,team:u.team,token:u.token};S.set("ss_session",user);
+  $("auth").classList.add("hide");$("app").classList.remove("hide");
+  $("who").textContent=u.team+" / "+u.id;
+  setTimeout(function(){map.invalidateSize();render();locate(true)},0);
+  sync();
+  clearInterval(pollTimer);pollTimer=setInterval(function(){if(!document.hidden)sync()},POLL_MS);
+}
+function logout(){
+  if(user&&user.token)api("POST","/api/logout")["catch"](function(){});
+  clearInterval(pollTimer);S.set("ss_session",null);user=null;pins=[];closeSheet();closeSearch();
+  $("app").classList.add("hide");$("auth").classList.remove("hide");$("pw").value=""}
+$("out").onclick=logout;
+document.addEventListener("visibilitychange",function(){if(!document.hidden&&user)sync()});
+window.addEventListener("online",function(){if(user)sync()});
+window.addEventListener("offline",function(){online=false;renderNet()});
+
+/* ---------- 同期（10秒ごとの自動更新 + オフライン時の未送信キュー） ---------- */
+function qKey(){return "ss_queue_"+(user?user.id:"")}
+function queue(){return S.get(qKey())||[]}
+function setQueue(q){S.set(qKey(),q)}
+function pinBody(d){return{lat:d.lat,lng:d.lng,name:d.name,status:d.status,go:d.go,live:d.live,dead:d.dead,missing:d.missing,
+  hazard:d.hazard||"",address:d.address||"",floor:d.floor||"",note:d.note||"",startAt:d.startAt||null,endAt:d.endAt||null}}
+function isTmp(id){return typeof id==="string"&&id.indexOf("tmp-")===0}
+function enqueue(d){
+  var q=queue(),body=pinBody(d),i;
+  if(!d.id||isTmp(d.id)){
+    if(!d.id)d.id="tmp-"+Date.now();
+    for(i=0;i<q.length;i++)if(q[i].tmp===d.id){q[i].body=body;break}
+    if(i===q.length)q.push({op:"create",tmp:d.id,body:body});
+  }else{
+    for(i=0;i<q.length;i++)if(q[i].op==="update"&&q[i].id===d.id){q[i].body=body;break}
+    if(i===q.length)q.push({op:"update",id:d.id,body:body});
+  }
+  setQueue(q);
+}
+function withQueue(list){
+  var q=queue(),byId={};
+  list.forEach(function(p){byId[p.id]=p});
+  q.forEach(function(e){
+    if(e.op==="update"&&byId[e.id]){var p=byId[e.id];for(var k in e.body)p[k]=e.body[k];p._pending=true}
+    if(e.op==="create"){var n=JSON.parse(JSON.stringify(e.body));n.id=e.tmp;n.team=user.team;n.by=user.id;n._pending=true;list.push(n)}
+  });
+  return list;
+}
+var flushing=null;
+function flush(){
+  if(flushing)return flushing;
+  var q=queue();if(!q.length||!user)return Promise.resolve(false);
+  var sentAny=false;
+  flushing=q.reduce(function(prev,e){
+    return prev.then(function(stop){
+      if(stop)return true;
+      var req=e.op==="create"?api("POST","/api/pins",e.body):api("PUT","/api/pins/"+e.id,e.body);
+      return req.then(function(){drop(e);sentAny=true;return false},function(err){
+        if(err&&err._net)return true;               // まだオフライン → 次回再送
+        if(err&&err._status===401)return true;
+        drop(e);return false;                        // 400/404等は再送しても無駄なので破棄
+      });
+    });
+  },Promise.resolve(false)).then(function(){flushing=null;if(sentAny)toast(t("sent"));return sentAny});
+  function drop(e){setQueue(queue().filter(function(x){return !(x.op===e.op&&(x.tmp||x.id)===(e.tmp||e.id))}))}
+  return flushing;
+}
+function sync(){
+  if(!user)return;
+  flush().then(function(){
+    return api("GET","/api/pins").then(function(list){
+      online=true;lastSync=Date.now();
+      if(draft&&typeof draft.id==="number"&&!draft._warned){
+        var cur=list.filter(function(p){return p.id===draft.id})[0];
+        if(cur&&cur.t>draft.t&&cur.updatedBy!==user.id){draft._warned=true;toast(t("otherUpdated"),4000)}
+      }
+      pins=withQueue(list);render();renderNet();
+    },function(e){
+      if(e&&e._status===401){toast(t("sessionExpired"));logout();return}
+      if(e&&e._net){online=false;pins=withQueue(pins.filter(function(p){return !p._pending||!isTmp(p.id)}));render();renderNet();return}
+      toast(t("loadFail"));
+    });
+  });
+}
+function renderNet(){
+  var n=queue().length,el=$("net");
+  el.classList.toggle("off",!online);
+  el.innerHTML='<i></i><span>'+esc(online?t("synced",{time:lastSync?new Date(lastSync).toLocaleTimeString(t("locale"),{hour:"2-digit",minute:"2-digit",second:"2-digit"}):"--"}):t("offline"))+'</span>'+
+    (n?' <b>'+esc(t("pending",{n:n}))+'</b>':'');
+}
+
+/* ---------- geo ---------- */
+function getPos(){return new Promise(function(res,rej){
+  if(!navigator.geolocation)return rej();
+  navigator.geolocation.getCurrentPosition(function(p){res({lat:p.coords.latitude,lng:p.coords.longitude})},rej,{enableHighAccuracy:true,timeout:8000,maximumAge:5000})})}
+function locate(center){
+  getPos().then(function(p){
+    gps=p;showGps(p);
+    if(center)map.setView([p.lat,p.lng],Math.max(map.getZoom(),17));
+  },function(){gps=null;if(!center)toast(t("gpsFail"))});
+}
+function distM(a,b){
+  var R=6371000,r=Math.PI/180,dLat=(b.lat-a.lat)*r,dLng=(b.lng-a.lng)*r;
+  var h=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+
+/* ---------- map（Leaflet + OpenStreetMap） ---------- */
+var ST_FULL_ZOOM=18; // これ以上のズームで建物単位の詳細表示、未満は色点のみ
+var map=L.map("map",{zoomControl:false,attributionControl:true,maxZoom:19}).setView([c.lat,c.lng],17);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+  maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
+}).addTo(map);
+L.control.scale({metric:true,imperial:false,position:"bottomleft"}).addTo(map);
+var markersLayer=L.layerGroup().addTo(map);
+var gpsMarker=null;
+
+function glyph(st,r,col){
+  col=col||"var(--ink)";
+  var p="0,"+-r+" "+r+",0 0,"+r+" "+-r+",0",q=(r*.5);
+  var out='<polygon points="'+p+'" fill="'+(st===2?col:"var(--bg)")+'" stroke="'+col+'" stroke-width="1.6"/>';
+  if(st===1)out+='<polygon points="0,'+-q+' '+q+',0 0,'+q+' '+-q+',0" fill="'+col+'"/>';
+  return out;
+}
+function pinSVG(p,detailed){
+  var st=+p.status,col="var(--st"+(st>=0&&st<=2?st:1)+")",dash=p._pending?' stroke-dasharray="4 3"':'';
+  if(!detailed)return '<svg width="20" height="20" viewBox="-10 -10 20 20"><circle r="7" fill="'+col+'" stroke="'+(p._pending?"var(--warn)":"var(--bg)")+'" stroke-width="2"'+dash+'/></svg>';
+  var q=18,tx=function(x,y,z,v,al){return '<text x="'+x+'" y="'+y+'" text-anchor="'+(al||"middle")+'" font-size="'+z+'">'+esc(v)+'</text>'};
+  return '<svg width="76" height="100" viewBox="-38 -38 76 100" style="overflow:visible">'+
+    '<rect x="'+-q+'" y="'+-q+'" width="'+2*q+'" height="'+2*q+'" fill="var(--panel)" stroke="'+col+'" stroke-width="4"'+dash+'/>'+
+    tx(0,-5,10,(p.team||"").slice(0,3))+'<g transform="translate(0,8)">'+glyph(st,6,col)+'</g>'+
+    tx(0,-25,11,(p.hazard||"").slice(0,6))+tx(-23,5,13,"L"+(p.live||0),"end")+tx(23,5,13,"D"+(p.dead||0),"start")+tx(0,36,13,"M"+(p.missing||0))+
+    tx(0,53,12,(p.name||"")+(p.floor?" "+p.floor:""))+'</svg>';
+}
+function pinIcon(p,detailed){
+  return L.divIcon({html:pinSVG(p,detailed),className:"pin-ic",iconSize:detailed?[76,100]:[20,20],iconAnchor:detailed?[38,38]:[10,10]});
+}
+function visible(){
+  if(teamFilter==="all")return pins;
+  var tm=teamFilter==="mine"?(user&&user.team):teamFilter.slice(5);
+  return pins.filter(function(p){return p.team===tm});
+}
+function renderFilter(){
+  var teams={};pins.forEach(function(p){if(p.team)teams[p.team]=1});
+  var opts=[["all",t("allTeams")],["mine",t("myTeam")]].concat(Object.keys(teams).sort().map(function(x){return["team:"+x,x]}));
+  if(!opts.some(function(o){return o[0]===teamFilter}))opts.push([teamFilter,teamFilter.slice(5)]);
+  $("tf").innerHTML=opts.map(function(o){return '<option value="'+esc(o[0])+'"'+(o[0]===teamFilter?" selected":"")+'>'+esc(o[1])+'</option>'}).join("");
+}
+$("tf").onchange=function(){teamFilter=this.value;S.set("ss_teamf",teamFilter);closeListPanel();render()};
+function render(){
+  if(!user)return;
+  var detailed=map.getZoom()>=ST_FULL_ZOOM,list=visible();
+  markersLayer.clearLayers();
+  list.forEach(function(p){
+    var m=L.marker([p.lat,p.lng],{icon:pinIcon(p,detailed)});
+    m.on("click",function(){
+      if($("sheet")){closeSheet();return}
+      openSheet(JSON.parse(JSON.stringify(p)));
+    });
+    markersLayer.addLayer(m);
+  });
+  if(draft&&!draft.id){
+    markersLayer.addLayer(L.marker([draft.lat,draft.lng],{
+      interactive:false,
+      icon:L.divIcon({html:'<div style="width:36px;height:36px;border:2.5px dashed var(--mark);box-sizing:border-box;border-radius:2px"></div>',className:"pin-ic",iconSize:[36,36],iconAnchor:[18,18]})
+    }));
+  }
+  var n=[0,0,0];list.forEach(function(p){n[+p.status]=(n[+p.status]||0)+1});
+  $("cnt").innerHTML=[0,1,2].map(function(i){return '<span data-status="'+i+'"><svg width="12" height="12" viewBox="-7 -7 14 14">'+glyph(i,6,"var(--st"+i+")")+'</svg>'+esc(t("st"+i))+' <b class="mono">'+n[i]+'</b></span>'}).join("");
+  renderFilter();
+}
+window.addEventListener("resize",function(){map.invalidateSize()});
+map.on("zoomend",render);
+map.on("click",function(e){
+  if($("sheet")){closeSheet();return}
+  if($("srch")){closeSearch();return}
+  if(placing){setPlacing(false);openSheet(blank({lat:e.latlng.lat,lng:e.latlng.lng}))}
+});
+function showGps(p){
+  var icon=L.divIcon({html:'<svg width="22" height="22" viewBox="-11 -11 22 22"><circle r="8" fill="none" stroke="var(--ink)" stroke-width="2"/><circle r="3" fill="var(--ink)"/></svg>',className:"pin-ic",iconSize:[22,22],iconAnchor:[11,11]});
+  if(gpsMarker)gpsMarker.setLatLng([p.lat,p.lng]).setIcon(icon);else gpsMarker=L.marker([p.lat,p.lng],{icon:icon,interactive:false,keyboard:false}).addTo(map);
+}
+$("zi").onclick=function(){map.zoomIn()};
+$("zo").onclick=function(){map.zoomOut()};
+$("zc").onclick=function(){locate(true)};
+
+/* ---------- 状況別リスト ---------- */
+function closeListPanel(){var el=$("listpanel");if(el)el.remove()}
+function openStatusList(status){
+  closeListPanel();closeSheet();closeSearch();
+  var list=visible().filter(function(p){return +p.status===status});
+  var el=document.createElement("div");el.className="listpanel";el.id="listpanel";
+  el.style.top=($$(".tl")[0].offsetHeight+18)+"px";
+  el.innerHTML='<div class="lp-top"><b>'+esc(t("st"+status))+'（'+list.length+'）</b><button id="lpx" type="button">'+esc(t("close"))+'</button></div>'+
+    (list.length?list.map(function(p){return '<button type="button" class="lp-row" data-id="'+esc(p.id)+'">'+esc((p.name||t("unnamed"))+(p.floor?" "+p.floor:""))+'</button>'}).join(""):'<div class="lp-empty">'+esc(t("none"))+'</div>');
+  $("stage").appendChild(el);
+  $("lpx").onclick=closeListPanel;
+  el.addEventListener("click",function(e){
+    var b=e.target.closest(".lp-row");if(!b)return;
+    var p=pins.filter(function(x){return String(x.id)===b.getAttribute("data-id")})[0];
+    if(p){map.setView([p.lat,p.lng],Math.max(map.getZoom(),18));closeListPanel()}
+  });
+}
+$("cnt").addEventListener("click",function(e){
+  var el=e.target.closest("[data-status]");if(!el)return;
+  openStatusList(+el.getAttribute("data-status"));
+});
+
+/* ---------- 住所検索 ---------- */
+function closeSearch(){var el=$("srch");if(el)el.remove()}
+function openSearch(){
+  var prev=$("sq")?$("sq").value:"";
+  closeSearch();closeListPanel();closeSheet();setPlacing(false);
+  var el=document.createElement("div");el.className="srch";el.id="srch";
+  el.innerHTML='<form id="sf"><input id="sq" enterkeyhint="search" placeholder="'+esc(t("addrSearchPh"))+'" aria-label="'+esc(t("address"))+'"><button class="solid" type="submit">'+esc(t("search"))+'</button><button type="button" id="sxx">'+esc(t("close"))+'</button></form><div id="sr"></div>';
+  $("stage").appendChild(el);
+  $("sq").value=prev;$("sq").focus();
+  $("sxx").onclick=closeSearch;
+  $("sf").onsubmit=function(e){
+    e.preventDefault();var q=$("sq").value.trim();if(!q)return;
+    $("sr").innerHTML='<div class="msg">'+esc(t("searching"))+'</div>';
+    api("GET","/api/geocode?q="+encodeURIComponent(q)+"&lang="+lang).then(function(list){
+      if(!$("sr"))return;
+      $("sr").innerHTML=list.length?list.map(function(r,i){return '<button type="button" class="lp-row" data-i="'+i+'">'+esc(r.label)+'</button>'}).join(""):'<div class="msg">'+esc(t("noResult"))+'</div>';
+      $("sr").onclick=function(ev){
+        var b=ev.target.closest(".lp-row");if(!b)return;var r=list[+b.getAttribute("data-i")];
+        closeSearch();map.setView([r.lat,r.lng],18);
+        var d=blank({lat:r.lat,lng:r.lng});d.address=r.label;openSheet(d);
+      };
+    },function(e){if($("sr"))$("sr").innerHTML='<div class="msg">'+esc(e&&e._net?t("noServer"):t("geoFail"))+'</div>'});
+  };
+}
+$("addr").onclick=function(){if($("srch"))closeSearch();else openSearch()};
+
+/* ---------- ピン ---------- */
+function blank(ll){return{lat:ll.lat,lng:ll.lng,name:"",status:1,go:true,live:0,dead:0,missing:0,hazard:"",address:"",floor:"",note:"",startAt:Date.now(),endAt:null}}
+function setPlacing(v){placing=v;$("pick").classList.toggle("on",v);$("hint").classList.toggle("hide",!v)}
+$("pick").onclick=function(){closeSheet();closeSearch();setPlacing(!placing)};
+$("here").onclick=function(){
+  setPlacing(false);closeSearch();
+  getPos().then(function(p){
+    gps=p;showGps(p);map.setView([p.lat,p.lng],Math.max(map.getZoom(),18));openSheet(blank(p));
+  },function(){
+    var ctr=map.getCenter();toast(t("gpsFallback"));openSheet(blank({lat:ctr.lat,lng:ctr.lng}));
+  });
+};
+function toInput(ms){if(!ms)return"";var d=new Date(ms);return new Date(ms-d.getTimezoneOffset()*60000).toISOString().slice(0,16)}
+function fromInput(v){if(!v)return null;var n=new Date(v).getTime();return isNaN(n)?null:n}
+function collectForm(){
+  if(!draft||!$("sheet"))return;
+  draft.name=$("pn").value.trim();draft.floor=$("pf").value.trim();draft.address=$("pa").value.trim();
+  draft.hazard=$("ph").value.trim();draft.note=$("pt").value.trim();
+  draft.startAt=fromInput($("ps0").value);draft.endAt=fromInput($("ps1").value);
+}
+function lookupAddress(d,force){
+  api("GET","/api/reverse?lat="+d.lat+"&lng="+d.lng+"&lang="+lang).then(function(r){
+    if(draft===d&&$("pa")&&(force||!$("pa").value)&&r.label){$("pa").value=r.label;d.address=r.label}
+  },function(){});
+}
+function openSheet(d){
+  closeListPanel();closeSearch();d.missing=d.missing||0;draft=d;closeSheet(true);$("bar").classList.add("hide");render();
+  var el=document.createElement("div");el.className="sheet";el.id="sheet";
+  var seg=function(k,items,cur){return '<div class="seg" data-k="'+k+'">'+items.map(function(x){return '<button type="button" data-v="'+x[0]+'"'+(String(cur)===String(x[0])?' class="on"':'')+'>'+esc(x[1])+'</button>'}).join("")+'</div>'};
+  var stp=function(k,l,v){return '<div class="row"><span>'+esc(l)+'</span><div class="step" data-k="'+k+'"><button type="button" data-d="-1" aria-label="'+esc(t("dec"))+'">－</button><b class="mono">'+v+'</b><button type="button" data-d="1" aria-label="'+esc(t("inc"))+'">＋</button></div></div>'};
+  var isNew=!d.id,own=user&&d.team===user.team;
+  var near=isNew?pins.filter(function(p){return distM(p,d)<=DUP_M}).map(function(p){return{p:p,m:Math.round(distM(p,d))}}).sort(function(a,b){return a.m-b.m}).slice(0,3):[];
+  var meta=isNew?"":'<div class="meta">'+esc(t("created"))+': '+esc((d.team||"")+" / "+(d.by||""))+
+    (d.t?'<br>'+esc(t("updated"))+': '+esc((d.updatedBy||d.by||"")+" · "+fmtTime(d.t)):"")+'</div>';
+  el.innerHTML='<div class="sh-top"><h2>'+esc(isNew?t("newPin"):t("editPin"))+(d._pending?'<span class="tag">'+esc(t("unsent"))+'</span>':'')+'</h2><button id="pc" type="button">'+esc(t("close"))+'</button><button class="solid" id="ps" type="button">'+esc(t("save"))+'</button></div>'+
+   '<div class="co mono" style="margin-top:8px">'+d.lat.toFixed(5)+', '+d.lng.toFixed(5)+'</div>'+meta+
+   (near.length?'<div class="warnbox" role="alert">⚠ '+esc(t("dupWarn"))+near.map(function(x){return '<button type="button" data-near="'+esc(x.p.id)+'">'+esc((x.p.name||t("unnamed"))+" — "+t("st"+x.p.status)+" · "+(x.p.team||"")+" · "+x.m+"m")+'</button>'}).join("")+'</div>':'')+
+   '<div class="two"><div><label for="pn">'+esc(t("name"))+'</label><input id="pn" placeholder="'+esc(t("namePh"))+'"></div>'+
+   '<div style="flex:0 0 32%"><label for="pf">'+esc(t("floor"))+'</label><input id="pf" placeholder="'+esc(t("floorPh"))+'"></div></div>'+
+   '<div class="lrow"><label for="pa">'+esc(t("address"))+'</label><button type="button" class="lbtn" id="pag">'+esc(t("addrGet"))+'</button></div><input id="pa" placeholder="'+esc(t("addrPh"))+'">'+
+   '<label>'+esc(t("status"))+'</label>'+
+   seg("status",[[0,"□ "+t("st0")],[1,"◪ "+t("st1")],[2,"■ "+t("st2s")]],d.status)+
+   '<label>'+esc(t("entry"))+'</label>'+seg("go",[[true,t("goYes")],[false,t("goNo")]],d.go)+
+   stp("missing",t("missing"),d.missing)+stp("live",t("live"),d.live)+stp("dead",t("dead"),d.dead)+
+   '<label for="ph">'+esc(t("hazard"))+'</label><input id="ph" placeholder="'+esc(t("hazardPh"))+'">'+
+   '<div class="two"><div><label for="ps0">'+esc(t("startT"))+'</label><div class="trow"><input id="ps0" type="datetime-local"><button type="button" data-now="ps0">'+esc(t("now"))+'</button></div></div></div>'+
+   '<div class="two"><div><label for="ps1">'+esc(t("endT"))+'</label><div class="trow"><input id="ps1" type="datetime-local"><button type="button" data-now="ps1">'+esc(t("now"))+'</button></div></div></div>'+
+   '<label for="pt">'+esc(t("note"))+'</label><textarea id="pt" rows="3" placeholder="'+esc(t("notePh"))+'"></textarea>'+
+   (d.id&&(own||isTmp(d.id))?'<div class="acts"><button class="del" id="pd" type="button">'+esc(t("del"))+'</button></div>':'');
+  $("stage").appendChild(el);
+  // 値はinnerHTMLではなくプロパティで入れる（XSS対策）
+  $("pn").value=d.name||"";$("pf").value=d.floor||"";$("pa").value=d.address||"";$("ph").value=d.hazard||"";$("pt").value=d.note||"";
+  $("ps0").value=toInput(d.startAt);$("ps1").value=toInput(d.endAt);
+  if(isNew&&!d.address)lookupAddress(d,false);
+  $("pag").onclick=function(){lookupAddress(d,true)};
+  el.addEventListener("click",function(e){
+    var b=e.target.closest("button");if(!b)return;
+    if(b.hasAttribute("data-near")){var id=b.getAttribute("data-near");var p=pins.filter(function(x){return String(x.id)===id})[0];
+      if(p){map.setView([p.lat,p.lng],Math.max(map.getZoom(),18));draft=null;openSheet(JSON.parse(JSON.stringify(p)))}return}
+    if(b.hasAttribute("data-now")){$(b.getAttribute("data-now")).value=toInput(Date.now());return}
+    var g=b.parentNode.getAttribute("data-k");
+    if(b.hasAttribute("data-v")){var v=b.getAttribute("data-v");draft[g]=g==="go"?v==="true":+v;
+      Array.prototype.forEach.call(b.parentNode.children,function(x){x.classList.toggle("on",x===b)});
+      // 状況に合わせて捜索開始/終了時刻を自動入力（空欄のときだけ）
+      if(g==="status"&&draft.status>=1&&!$("ps0").value)$("ps0").value=toInput(Date.now());
+      if(g==="status"&&draft.status===2&&!$("ps1").value)$("ps1").value=toInput(Date.now());
+    }
+    else if(b.hasAttribute("data-d")){draft[g]=Math.max(0,draft[g]+ +b.getAttribute("data-d"));b.parentNode.querySelector("b").textContent=draft[g]}
+  });
+  $("pc").onclick=function(){closeSheet()};
+  $("ps").onclick=save;
+  if($("pd"))$("pd").onclick=del;
+}
+function closeSheet(keep){var s=$("sheet");if(s)s.remove();if(!keep){draft=null;if(user){$("bar").classList.remove("hide");render()}}}
+function replaceLocal(oldId,saved){
+  var found=false;
+  pins=pins.map(function(p){if(p.id===oldId){found=true;return saved}return p});
+  if(!found)pins.push(saved);
+}
+function save(){
+  collectForm();
+  if(!draft.name)return toast(t("nameReq"));
+  var d=draft,body=pinBody(d);
+  var offline=function(){enqueue(d);var local=JSON.parse(JSON.stringify(d));local._pending=true;local.team=local.team||user.team;local.by=local.by||user.id;
+    replaceLocal(d.id,local);closeSheet();renderNet();toast(t("queued"),3500)};
+  if(isTmp(d.id))return offline();               // まだ送信されていないピンの編集
+  var req=d.id?api("PUT","/api/pins/"+d.id,body):api("POST","/api/pins",body);
+  req.then(function(saved){
+    replaceLocal(d.id||saved.id,saved);closeSheet();toast(t("saved"));
+  },function(e){
+    if(e&&e._net){online=false;return offline()}
+    toast(t("saveFail"));
+  });
+}
+function del(){
+  var d=draft;
+  if(isTmp(d.id)){setQueue(queue().filter(function(e){return e.tmp!==d.id}));pins=pins.filter(function(p){return p.id!==d.id});closeSheet();renderNet();toast(t("deleted"));return}
+  api("DELETE","/api/pins/"+d.id).then(function(){
+    setQueue(queue().filter(function(e){return e.id!==d.id}));
+    pins=pins.filter(function(p){return p.id!==d.id});closeSheet();renderNet();toast(t("deleted"));
+  },function(e){toast(e&&e._status===403?t("delForbidden"):e&&e._net?t("delOffline"):t("delFail"))});
+}
+var tt;function toast(m,ms){var x=document.querySelector(".toast");if(x)x.remove();x=document.createElement("div");x.className="toast";x.textContent=m;$("stage").appendChild(x);clearTimeout(tt);tt=setTimeout(function(){x.remove()},ms||2200)}
+
+/* ---------- テーマ・共有 ---------- */
+var th0=S.get("ss_theme");if(th0)document.documentElement.setAttribute("data-theme",th0);
+$("th").onclick=function(){var r=document.documentElement,dk=getComputedStyle(r).getPropertyValue("--bg").trim()==="#1c1b17",n=dk?"light":"dark";r.setAttribute("data-theme",n);S.set("ss_theme",n);render()};
+var shareOpen=function(){
+  var url=location.origin+location.pathname;$("su").value=url;
+  var box=$("qrbox");box.innerHTML="";
+  try{new QRCode(box,{text:url,width:180,height:180,correctLevel:QRCode.CorrectLevel.M})}
+  catch(e){box.textContent=t("qrFail")}
+  $("modal").classList.remove("hide");
+};
+$("zq").onclick=shareOpen;$("shA").onclick=shareOpen;
+$("sx").onclick=function(){$("modal").classList.add("hide")};
+$("modal").addEventListener("click",function(e){if(e.target===this)this.classList.add("hide")});
+$("su").onclick=function(){this.select()};
+$("sc").onclick=function(){var b=this,i=$("su");i.select();
+  var ok=function(){b.textContent=t("copied");setTimeout(function(){b.textContent=t("copy")},1500)};
+  try{navigator.clipboard.writeText(i.value).then(ok,function(){try{document.execCommand("copy")&&ok()}catch(e){}})}catch(e){try{document.execCommand("copy")&&ok()}catch(_){}}};
+
+/* ---------- boot ---------- */
+applyI18n();
+var ses=S.get("ss_session");
+if(ses&&ses.token){enter(ses)}
+})();
+</script>
+</body>
+</html>

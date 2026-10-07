@@ -1,0 +1,13 @@
+{
+  "name": "search-share",
+  "private": true,
+  "scripts": {
+    "db:migrate:local": "wrangler d1 migrations apply search-share-db --local",
+    "db:migrate": "wrangler d1 migrations apply search-share-db --remote",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.148.0"
+  }
+}

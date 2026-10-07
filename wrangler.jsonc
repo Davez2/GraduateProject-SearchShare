@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "search-share",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  // public/ の中身(index.html)はそのまま静的ファイルとして配信される。
+  // /api/* はファイルが存在しないので Worker (src/index.js) が処理する。
+  "assets": {
+    "directory": "./public",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "search-share-db",
+      // ↓ `npx wrangler d1 create search-share-db` で表示された database_id に置き換える
+      "database_id": "REPLACE_WITH_YOUR_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
