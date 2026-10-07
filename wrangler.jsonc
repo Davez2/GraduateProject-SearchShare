@@ -14,7 +14,7 @@
       "binding": "DB",
       "database_name": "search-share-db",
       // ↓ `npx wrangler d1 create search-share-db` で表示された database_id に置き換える
-      "database_id": "REPLACE_WITH_YOUR_DATABASE_ID",
+      "database_id": "7837bacf-43fe-471c-b740-571f2d16e87f",
       "migrations_dir": "migrations"
     }
   ]
