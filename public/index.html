@@ -131,6 +131,7 @@ input[type=datetime-local]{font-size:15px;padding:.3em 0}
 .meta{font-size:12px;opacity:.8;margin-top:6px;line-height:1.5}
 .tag{display:inline-block;border:1px dashed var(--warn);color:var(--warn);font-size:11px;padding:0 6px;margin-left:6px;vertical-align:2px}
 .bar button{font-size:15px;line-height:1.25;padding:.6em .2em}
+#map.photo .leaflet-tile-pane{filter:none!important}
 @media (max-width:460px){header h1{display:none}header .r{gap:6px;width:100%;justify-content:flex-end}}
 </style>
 </head>
@@ -157,6 +158,7 @@ input[type=datetime-local]{font-size:15px;padding:.3em 0}
       <div class="cnt" id="cnt"></div>
       <div class="tl2">
         <select id="tf" data-i18n-aria="filterLabel"></select>
+        <select id="ml" data-i18n-aria="layerLabel"></select>
         <div class="net" id="net" role="status" aria-live="polite"></div>
       </div>
     </div>
@@ -193,10 +195,11 @@ ja:{title:"捜索状況共有",login:"ログイン",register:"新規登録",team
  delForbidden:"他の隊のピンは削除できません",delOffline:"オフライン中は削除できません",queued:"オフライン：接続が戻ったら自動で送信します",sent:"未送信のデータを送信しました",
  gpsFallback:"GPS不可：地図の中心に設置",gpsFail:"GPSを取得できません",loadFail:"ピンを取得できませんでした",sessionExpired:"セッションが切れました。再度ログインしてください",
  teamReq:"隊名を入力してください",idRule:"IDは英数字3〜20文字",pwRule:"パスワードは6文字以上",idTaken:"このIDは使われています",badCred:"IDまたはパスワードが違います",
- missingIn:"入力に不足があります",noServer:"サーバーに接続できません。通信状況を確認してください",none:"該当なし",unnamed:"（名称未設定）",
+ missingIn:"入力に不足があります",noServer:"サーバーに接続できません。通信状況を確認してください",serverErr:"サーバーエラーが発生しました（{code}）",none:"該当なし",unnamed:"（名称未設定）",
  synced:"同期 {time}",offline:"オフライン",pending:"未送信 {n}件",allTeams:"全隊",myTeam:"自隊",filterLabel:"表示する隊",
  addrSearchPh:"住所・施設名",search:"検索",searching:"検索中…",noResult:"見つかりませんでした",geoFail:"住所検索に失敗しました",
  otherUpdated:"このピンは他のユーザーに更新されました。保存すると上書きされます",qrFail:"QRコードを読み込めませんでした（インターネット接続を確認）",
+ layerLabel:"地図の種類",layerOsm:"OSM",layerStd:"地理院地図",layerPale:"地理院 淡色",layerPhoto:"航空写真",
  lang:"EN",locale:"ja-JP"},
 en:{title:"Search Status Share",login:"Log in",register:"Sign up",team:"Team",id:"ID",password:"Password",startReg:"Sign up & start",
  shareQR:"Share via QR",theme:"Day/Night",logout:"Log out",map:"Map",zoomIn:"Zoom in",zoomOut:"Zoom out",toMe:"My location",tapMap:"Tap the map",
@@ -210,10 +213,11 @@ en:{title:"Search Status Share",login:"Log in",register:"Sign up",team:"Team",id
  delForbidden:"You can't delete another team's pin",delOffline:"Can't delete while offline",queued:"Offline: will be sent automatically when back online",sent:"Unsent data was sent",
  gpsFallback:"No GPS: placed at map centre",gpsFail:"Couldn't get GPS",loadFail:"Couldn't load pins",sessionExpired:"Session expired. Please log in again",
  teamReq:"Enter a team name",idRule:"ID: 3–20 letters, digits, _ or -",pwRule:"Password: at least 6 characters",idTaken:"That ID is already taken",badCred:"Wrong ID or password",
- missingIn:"Some fields are missing",noServer:"Can't reach the server. Check your connection",none:"None",unnamed:"(unnamed)",
+ missingIn:"Some fields are missing",noServer:"Can't reach the server. Check your connection",serverErr:"Server error ({code})",none:"None",unnamed:"(unnamed)",
  synced:"Synced {time}",offline:"Offline",pending:"{n} unsent",allTeams:"All teams",myTeam:"My team",filterLabel:"Team filter",
  addrSearchPh:"Address or place",search:"Search",searching:"Searching…",noResult:"No results",geoFail:"Address search failed",
  otherUpdated:"Someone else updated this pin. Saving will overwrite their changes",qrFail:"Couldn't load the QR code (check your connection)",
+ layerLabel:"Map type",layerOsm:"OSM",layerStd:"GSI map",layerPale:"GSI pale",layerPhoto:"Aerial photo",
  lang:"日本語",locale:"en-GB"}};
 var lang=S.get("ss_lang")==="en"?"en":"ja";
 function t(k,o){var s=I18N[lang][k];if(s==null)s=I18N.ja[k]!=null?I18N.ja[k]:k;
@@ -224,7 +228,7 @@ function applyI18n(){
   $$("[data-i18n]").forEach(function(el){el.textContent=t(el.getAttribute("data-i18n"))});
   $$("[data-i18n-aria]").forEach(function(el){el.setAttribute("aria-label",t(el.getAttribute("data-i18n-aria")))});
   $$(".lg").forEach(function(el){el.textContent=t("lang")});
-  setMode(mode);
+  setMode(mode);renderLayerSelect();
   if(user){render();renderNet();if(draft){collectForm();openSheet(draft)}if($("srch"))openSearch()}
 }
 $$(".lg").forEach(function(el){el.onclick=function(){lang=lang==="ja"?"en":"ja";S.set("ss_lang",lang);applyI18n()}});
@@ -258,7 +262,7 @@ function submit(){
     api("POST","/api/login",{id:id,password:pw}).then(enter,authErr)["finally"](function(){$("go").disabled=false});
   }
 }
-function authErr(e){fail(e&&ERR_MSG[e.error]?t(ERR_MSG[e.error]):t("noServer"))}
+function authErr(e){fail(e&&ERR_MSG[e.error]?t(ERR_MSG[e.error]):e&&e._net?t("noServer"):t("serverErr",{code:(e&&(e.error||e._status))||"?"}))}
 function fail(m){$("err").textContent=m}
 $("go").onclick=submit;
 ["uid","pw","team"].forEach(function(i){$(i).addEventListener("keydown",function(e){if(e.key==="Enter")submit()})});
@@ -376,9 +380,29 @@ function distM(a,b){
 /* ---------- map（Leaflet + OpenStreetMap） ---------- */
 var ST_FULL_ZOOM=18; // これ以上のズームで建物単位の詳細表示、未満は色点のみ
 var map=L.map("map",{zoomControl:false,attributionControl:true,maxZoom:19}).setView([c.lat,c.lng],17);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
-  maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
-}).addTo(map);
+// 背景地図：OpenStreetMap ／ 国土地理院（地理院タイル：無料・登録不要、出典表示が必要）
+var GSI_ATTR='<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a>';
+var LAYERS={
+  osm:L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}),
+  std:L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png",{maxZoom:19,maxNativeZoom:18,attribution:GSI_ATTR}),
+  pale:L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png",{maxZoom:19,maxNativeZoom:18,attribution:GSI_ATTR}),
+  photo:L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg",{maxZoom:19,maxNativeZoom:18,attribution:GSI_ATTR})
+};
+var LAYER_KEYS={osm:"layerOsm",std:"layerStd",pale:"layerPale",photo:"layerPhoto"};
+var baseKey=LAYERS[S.get("ss_layer")]?S.get("ss_layer"):"osm";
+function setBase(k){
+  if(!LAYERS[k])k="osm";
+  Object.keys(LAYERS).forEach(function(x){if(x!==k&&map.hasLayer(LAYERS[x]))map.removeLayer(LAYERS[x])});
+  if(!map.hasLayer(LAYERS[k]))LAYERS[k].addTo(map);
+  baseKey=k;S.set("ss_layer",k);
+  $("map").classList.toggle("photo",k==="photo"); // 航空写真は夜テーマでも色を反転しない
+}
+function renderLayerSelect(){
+  $("ml").innerHTML=Object.keys(LAYERS).map(function(k){return '<option value="'+k+'"'+(k===baseKey?" selected":"")+'>'+esc(t(LAYER_KEYS[k]))+'</option>'}).join("");
+}
+$("ml").onchange=function(){setBase(this.value)};
+setBase(baseKey);
 L.control.scale({metric:true,imperial:false,position:"bottomleft"}).addTo(map);
 var markersLayer=L.layerGroup().addTo(map);
 var gpsMarker=null;

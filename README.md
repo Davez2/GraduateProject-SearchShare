@@ -18,6 +18,7 @@ Cloudflare上で24時間動くので、PCを起動しておく必要はありま
   画面左上に「同期 10:12」「オフライン」「未送信 N件」を表示
 - **隊で絞り込み**（全隊／自隊／各隊）
 - **日本語／English 切り替え**
+- 背景地図の切り替え：OpenStreetMap／地理院地図／地理院 淡色／航空写真
 - 昼／夜テーマ、QRコードでURL共有
 
 ## 必要なもの
@@ -113,5 +114,13 @@ public/vendor/       Leaflet 1.9.4・qrcodejs（外部CDNに依存しないよ�
 
 ## 地図について
 
-地図は [OpenStreetMap](https://www.openstreetmap.org/copyright) を [Leaflet](https://leafletjs.com/) 経由で表示しています。
-画面右下の出典表示は利用規約上必要なので消さないでください。
+背景地図は画面左上のメニューで切り替えられます（選択は端末に保存されます）。
+
+| 種類 | 提供元 | 備考 |
+|---|---|---|
+| OSM | [OpenStreetMap](https://www.openstreetmap.org/copyright) | 世界中で使える |
+| 地理院地図 / 地理院 淡色 | [国土地理院 地理院タイル](https://maps.gsi.go.jp/development/ichiran.html) | 日本の公式地図。建物の形まで詳しい |
+| 航空写真 | 国土地理院（全国最新写真・シームレス） | 建物の屋根・倒壊状況の確認に便利 |
+
+どれも無料・APIキー不要です。地図は [Leaflet](https://leafletjs.com/) で表示しています。
+画面右下の出典表示（OpenStreetMap／国土地理院）は利用規約上必要なので消さないでください。
