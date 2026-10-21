@@ -131,8 +131,32 @@ input[type=datetime-local]{font-size:15px;padding:.3em 0}
 .meta{font-size:12px;opacity:.8;margin-top:6px;line-height:1.5}
 .tag{display:inline-block;border:1px dashed var(--warn);color:var(--warn);font-size:11px;padding:0 6px;margin-left:6px;vertical-align:2px}
 .bar button{font-size:15px;line-height:1.25;padding:.6em .2em}
-#map.photo .leaflet-tile-pane{filter:none!important}
 @media (max-width:460px){header h1{display:none}header .r{gap:6px;width:100%;justify-content:flex-end}}
+#map.photo .leaflet-tile-pane{filter:none!important}
+/* ---------- v2.1 ---------- */
+.cnt{align-items:center}
+.cs{display:flex;align-items:center;gap:2px}
+.cs button{min-height:34px;padding:2px 8px;border-width:2px;border-color:var(--line);background:none}
+.cs .fbtn{width:38px;padding:0;display:flex;align-items:center;justify-content:center}
+.cs .fbtn:hover{background:var(--panel)}
+.cs .fbtn.on{border-color:var(--ink);background:var(--bg);box-shadow:0 0 0 2px var(--ink)}
+.cs .clab{border-color:transparent;font-size:13px;white-space:nowrap}
+.cs .clab:hover{background:var(--hi);color:var(--hi-ink)}
+.cnt.filtering .cs:not(.sel){opacity:.45}
+.fall{min-height:34px;padding:2px 8px;font-size:12px}
+.row{flex-wrap:wrap;gap:6px}
+.step{gap:6px}
+.step button{width:44px;height:44px;padding:0;font-size:15px}
+.step .num{width:64px;height:44px;text-align:center;font-size:18px;font-weight:700;padding:0;border:2px solid var(--line);background:var(--bg);-moz-appearance:textfield;appearance:textfield}
+.step .num:focus{border-color:var(--ink);background:var(--panel)}
+.step .num::-webkit-outer-spin-button,.step .num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.pin-ic .pulse{transform-box:fill-box;transform-origin:center}
+@media (prefers-reduced-motion:no-preference){.pin-ic .pulse{animation:pls 1.8s ease-out infinite}#map.nopulse .pulse{animation:none;opacity:0}}
+@keyframes pls{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.7);opacity:0}}
+@media (max-width:719px){.sheet{max-height:62%}}
+.cfm-msg{margin:0 0 6px;font-size:15px;line-height:1.7}
+.mrow .del{color:var(--warn);border-color:var(--warn)}
+.mrow .del:hover{background:var(--warn);color:var(--hi-ink)}
 </style>
 </head>
 <body>
@@ -186,7 +210,7 @@ var I18N={
 ja:{title:"捜索状況共有",login:"ログイン",register:"新規登録",team:"隊名",id:"ID",password:"パスワード",startReg:"登録して開始",
  shareQR:"QRで共有",theme:"昼/夜",logout:"ログアウト",map:"地図",zoomIn:"拡大",zoomOut:"縮小",toMe:"現在地へ",tapMap:"地図をタップ",
  pinHere:"現在地にピン",pickMap:"地図で選ぶ",byAddress:"住所で探す",share:"共有",copy:"コピー",copied:"コピー済み",close:"閉じる",save:"保存",del:"削除",
- status:"状況",st0:"未捜索",st1:"捜索中",st2:"捜索済み",st2s:"済",entry:"進入",goYes:"可",goNo:"不可",missing:"行方不明 M",live:"生存 L",dead:"死亡 D",dec:"減らす",inc:"増やす",
+ status:"状況",st0:"未捜索",st1:"捜索中",st2:"捜索済み",st2s:"済",entry:"進入",goYes:"可",goNo:"不可",missing:"行方不明 M",live:"生存 L",dead:"死亡 D",dec:"減らす",inc:"増やす",inc10:"10増やす",
  name:"建物名",namePh:"B棟",floor:"階",floorPh:"1F / 1〜3F",address:"住所",addrPh:"自動で入力されます",addrGet:"住所取得",
  hazard:"危険情報",hazardPh:"ガス漏れ など",note:"メモ",notePh:"要救助者の位置、進入経路 など",startT:"捜索開始",endT:"捜索終了",now:"今",
  newPin:"ピンを設置",editPin:"ピンを編集",created:"作成",updated:"最終更新",unsent:"未送信",
@@ -200,11 +224,13 @@ ja:{title:"捜索状況共有",login:"ログイン",register:"新規登録",team
  addrSearchPh:"住所・施設名",search:"検索",searching:"検索中…",noResult:"見つかりませんでした",geoFail:"住所検索に失敗しました",
  otherUpdated:"このピンは他のユーザーに更新されました。保存すると上書きされます",qrFail:"QRコードを読み込めませんでした（インターネット接続を確認）",
  layerLabel:"地図の種類",layerOsm:"OSM",layerStd:"地理院地図",layerPale:"地理院 淡色",layerPhoto:"航空写真",
+ unsavedTitle:"変更が保存されていません",unsavedClose:"このまま閉じると、入力した内容は失われます。",unsavedMove:"このまま別のピンへ移動すると、入力した内容は失われます。",
+ keepEditing:"編集を続ける",discardClose:"破棄して閉じる",discardMove:"破棄して移動",showAll:"全て表示",filterOnly:"{s}だけ表示",
  lang:"EN",locale:"ja-JP"},
 en:{title:"Search Status Share",login:"Log in",register:"Sign up",team:"Team",id:"ID",password:"Password",startReg:"Sign up & start",
  shareQR:"Share via QR",theme:"Day/Night",logout:"Log out",map:"Map",zoomIn:"Zoom in",zoomOut:"Zoom out",toMe:"My location",tapMap:"Tap the map",
  pinHere:"Pin my location",pickMap:"Pick on map",byAddress:"Find address",share:"Share",copy:"Copy",copied:"Copied",close:"Close",save:"Save",del:"Delete",
- status:"Status",st0:"Not searched",st1:"Searching",st2:"Searched",st2s:"Done",entry:"Entry",goYes:"GO",goNo:"NO GO",missing:"Missing M",live:"Alive L",dead:"Dead D",dec:"Decrease",inc:"Increase",
+ status:"Status",st0:"Not searched",st1:"Searching",st2:"Searched",st2s:"Done",entry:"Entry",goYes:"GO",goNo:"NO GO",missing:"Missing M",live:"Alive L",dead:"Dead D",dec:"Decrease",inc:"Increase",inc10:"Increase by 10",
  name:"Building",namePh:"Block B",floor:"Floor",floorPh:"1F / 1-3F",address:"Address",addrPh:"Filled in automatically",addrGet:"Look up",
  hazard:"Hazards",hazardPh:"e.g. gas leak",note:"Notes",notePh:"Victim location, access route, etc.",startT:"Search start",endT:"Search end",now:"Now",
  newPin:"New pin",editPin:"Edit pin",created:"Created",updated:"Last updated",unsent:"Unsent",
@@ -218,6 +244,8 @@ en:{title:"Search Status Share",login:"Log in",register:"Sign up",team:"Team",id
  addrSearchPh:"Address or place",search:"Search",searching:"Searching…",noResult:"No results",geoFail:"Address search failed",
  otherUpdated:"Someone else updated this pin. Saving will overwrite their changes",qrFail:"Couldn't load the QR code (check your connection)",
  layerLabel:"Map type",layerOsm:"OSM",layerStd:"GSI map",layerPale:"GSI pale",layerPhoto:"Aerial photo",
+ unsavedTitle:"Unsaved changes",unsavedClose:"If you close now, your changes will be lost.",unsavedMove:"If you move to another pin now, your changes will be lost.",
+ keepEditing:"Keep editing",discardClose:"Discard & close",discardMove:"Discard & move",showAll:"Show all",filterOnly:"Show only {s}",
  lang:"日本語",locale:"en-GB"}};
 var lang=S.get("ss_lang")==="en"?"en":"ja";
 function t(k,o){var s=I18N[lang][k];if(s==null)s=I18N.ja[k]!=null?I18N.ja[k]:k;
@@ -229,7 +257,7 @@ function applyI18n(){
   $$("[data-i18n-aria]").forEach(function(el){el.setAttribute("aria-label",t(el.getAttribute("data-i18n-aria")))});
   $$(".lg").forEach(function(el){el.textContent=t("lang")});
   setMode(mode);renderLayerSelect();
-  if(user){render();renderNet();if(draft){collectForm();openSheet(draft)}if($("srch"))openSearch()}
+  if(user){render();renderNet();if(draft){collectForm();openSheet(draft,true)}if($("srch"))openSearch()}
 }
 $$(".lg").forEach(function(el){el.onclick=function(){lang=lang==="ja"?"en":"ja";S.set("ss_lang",lang);applyI18n()}});
 
@@ -272,6 +300,7 @@ var user=null,pins=[],gps=null,placing=false,draft=null;
 var c={lat:35.6812,lng:139.7671};
 var online=true,lastSync=0,pollTimer=null,teamFilter=S.get("ss_teamf")||"all";
 var POLL_MS=10000,DUP_M=30;
+var stFilter=[],base=null; // stFilter: 地図に表示する状況（空＝すべて） / base: 編集開始時の入力内容
 
 function enter(u){
   user={id:u.id,team:u.team,token:u.token};S.set("ss_session",user);
@@ -285,7 +314,7 @@ function logout(){
   if(user&&user.token)api("POST","/api/logout")["catch"](function(){});
   clearInterval(pollTimer);S.set("ss_session",null);user=null;pins=[];closeSheet();closeSearch();
   $("app").classList.add("hide");$("auth").classList.remove("hide");$("pw").value=""}
-$("out").onclick=logout;
+$("out").onclick=function(){if($("sheet")&&isDirty())confirmDiscard("close",logout);else logout()};
 document.addEventListener("visibilitychange",function(){if(!document.hidden&&user)sync()});
 window.addEventListener("online",function(){if(user)sync()});
 window.addEventListener("offline",function(){online=false;renderNet()});
@@ -415,22 +444,32 @@ function glyph(st,r,col){
   return out;
 }
 function pinSVG(p,detailed){
-  var st=+p.status,col="var(--st"+(st>=0&&st<=2?st:1)+")",dash=p._pending?' stroke-dasharray="4 3"':'';
-  if(!detailed)return '<svg width="20" height="20" viewBox="-10 -10 20 20"><circle r="7" fill="'+col+'" stroke="'+(p._pending?"var(--warn)":"var(--bg)")+'" stroke-width="2"'+dash+'/></svg>';
+  var st=+p.status,col="var(--st"+(st>=0&&st<=2?st:1)+")",dash=p._pending?' stroke-dasharray="4 3"':'',red=st===0;
+  if(!detailed){
+    var ring=p._pending?"var(--warn)":"var(--bg)";
+    if(red)return '<svg width="30" height="30" viewBox="-15 -15 30 30" style="overflow:visible"><circle class="pulse" r="9" fill="none" stroke="var(--st0)" stroke-width="2.5"/><circle r="12.5" fill="none" stroke="var(--st0)" stroke-width="2" opacity=".55"/><circle r="9" fill="'+col+'" stroke="'+ring+'" stroke-width="2"'+dash+'/></svg>';
+    return '<svg width="20" height="20" viewBox="-10 -10 20 20"><circle r="7" fill="'+col+'" stroke="'+ring+'" stroke-width="2"'+dash+'/></svg>';
+  }
   var q=18,tx=function(x,y,z,v,al){return '<text x="'+x+'" y="'+y+'" text-anchor="'+(al||"middle")+'" font-size="'+z+'">'+esc(v)+'</text>'};
-  return '<svg width="76" height="100" viewBox="-38 -38 76 100" style="overflow:visible">'+
-    '<rect x="'+-q+'" y="'+-q+'" width="'+2*q+'" height="'+2*q+'" fill="var(--panel)" stroke="'+col+'" stroke-width="4"'+dash+'/>'+
+  var halo=red?'<rect class="pulse" x="-18" y="-18" width="36" height="36" fill="none" stroke="var(--st0)" stroke-width="3"/><rect x="-24" y="-24" width="48" height="48" fill="none" stroke="var(--st0)" stroke-width="2" opacity=".6"/>':'';
+  return '<svg width="76" height="100" viewBox="-38 -38 76 100" style="overflow:visible">'+halo+
+    '<rect x="'+-q+'" y="'+-q+'" width="'+2*q+'" height="'+2*q+'" fill="var(--panel)" stroke="'+col+'" stroke-width="'+(red?5:4)+'"'+dash+'/>'+
     tx(0,-5,10,(p.team||"").slice(0,3))+'<g transform="translate(0,8)">'+glyph(st,6,col)+'</g>'+
     tx(0,-25,11,(p.hazard||"").slice(0,6))+tx(-23,5,13,"L"+(p.live||0),"end")+tx(23,5,13,"D"+(p.dead||0),"start")+tx(0,36,13,"M"+(p.missing||0))+
     tx(0,53,12,(p.name||"")+(p.floor?" "+p.floor:""))+'</svg>';
 }
 function pinIcon(p,detailed){
-  return L.divIcon({html:pinSVG(p,detailed),className:"pin-ic",iconSize:detailed?[76,100]:[20,20],iconAnchor:detailed?[38,38]:[10,10]});
+  var red=+p.status===0,sz=detailed?[76,100]:(red?[30,30]:[20,20]),an=detailed?[38,38]:(red?[15,15]:[10,10]);
+  return L.divIcon({html:pinSVG(p,detailed),className:"pin-ic",iconSize:sz,iconAnchor:an});
 }
 function visible(){
   if(teamFilter==="all")return pins;
   var tm=teamFilter==="mine"?(user&&user.team):teamFilter.slice(5);
   return pins.filter(function(p){return p.team===tm});
+}
+function onMap(){
+  var l=visible();
+  return stFilter.length?l.filter(function(p){return stFilter.indexOf(+p.status)>=0}):l;
 }
 function renderFilter(){
   var teams={};pins.forEach(function(p){if(p.team)teams[p.team]=1});
@@ -441,16 +480,16 @@ function renderFilter(){
 $("tf").onchange=function(){teamFilter=this.value;S.set("ss_teamf",teamFilter);closeListPanel();render()};
 function render(){
   if(!user)return;
-  var detailed=map.getZoom()>=ST_FULL_ZOOM,list=visible();
+  var detailed=map.getZoom()>=ST_FULL_ZOOM,list=visible(),shown=onMap();
   markersLayer.clearLayers();
-  list.forEach(function(p){
-    var m=L.marker([p.lat,p.lng],{icon:pinIcon(p,detailed)});
-    m.on("click",function(){
-      if($("sheet")){closeSheet();return}
-      openSheet(JSON.parse(JSON.stringify(p)));
-    });
+  var reds=0;
+  shown.forEach(function(p){
+    var red=+p.status===0;if(red)reds++;
+    var m=L.marker([p.lat,p.lng],{icon:pinIcon(p,detailed),zIndexOffset:red?1000:0});
+    m.on("click",function(){openPinEdit(p,false)});
     markersLayer.addLayer(m);
   });
+  $("map").classList.toggle("nopulse",reds>40);
   if(draft&&!draft.id){
     markersLayer.addLayer(L.marker([draft.lat,draft.lng],{
       interactive:false,
@@ -458,13 +497,19 @@ function render(){
     }));
   }
   var n=[0,0,0];list.forEach(function(p){n[+p.status]=(n[+p.status]||0)+1});
-  $("cnt").innerHTML=[0,1,2].map(function(i){return '<span data-status="'+i+'"><svg width="12" height="12" viewBox="-7 -7 14 14">'+glyph(i,6,"var(--st"+i+")")+'</svg>'+esc(t("st"+i))+' <b class="mono">'+n[i]+'</b></span>'}).join("");
+  var fl=stFilter.length>0;
+  $("cnt").classList.toggle("filtering",fl);
+  $("cnt").innerHTML=[0,1,2].map(function(i){
+    var on=stFilter.indexOf(i)>=0;
+    return '<div class="cs'+(on?' sel':'')+'"><button type="button" class="fbtn'+(on?' on':'')+'" data-f="'+i+'" aria-pressed="'+on+'" aria-label="'+esc(t("filterOnly",{s:t("st"+i)}))+'"><svg width="16" height="16" viewBox="-8 -8 16 16">'+glyph(i,7,"var(--st"+i+")")+'</svg></button>'+
+      '<button type="button" class="clab" data-status="'+i+'">'+esc(t("st"+i))+' <b class="mono">'+n[i]+'</b></button></div>';
+  }).join("")+(fl?'<button type="button" class="fall" id="fall">'+esc(t("showAll"))+'</button>':'');
   renderFilter();
 }
-window.addEventListener("resize",function(){map.invalidateSize()});
+window.addEventListener("resize",function(){map.invalidateSize();layoutPanels()});
 map.on("zoomend",render);
 map.on("click",function(e){
-  if($("sheet")){closeSheet();return}
+  if($("sheet")){requestClose();return}
   if($("srch")){closeSearch();return}
   if(placing){setPlacing(false);openSheet(blank({lat:e.latlng.lat,lng:e.latlng.lng}))}
 });
@@ -477,9 +522,9 @@ $("zo").onclick=function(){map.zoomOut()};
 $("zc").onclick=function(){locate(true)};
 
 /* ---------- 状況別リスト ---------- */
-function closeListPanel(){var el=$("listpanel");if(el)el.remove()}
+function closeListPanel(){var el=$("listpanel");if(el)el.remove();layoutPanels()}
 function openStatusList(status){
-  closeListPanel();closeSheet();closeSearch();
+  closeListPanel();closeSearch();
   var list=visible().filter(function(p){return +p.status===status});
   var el=document.createElement("div");el.className="listpanel";el.id="listpanel";
   el.style.top=($$(".tl")[0].offsetHeight+18)+"px";
@@ -490,10 +535,23 @@ function openStatusList(status){
   el.addEventListener("click",function(e){
     var b=e.target.closest(".lp-row");if(!b)return;
     var p=pins.filter(function(x){return String(x.id)===b.getAttribute("data-id")})[0];
-    if(p){map.setView([p.lat,p.lng],Math.max(map.getZoom(),18));closeListPanel()}
+    if(!p)return;
+    var editing=!!$("sheet");
+    var go=function(){
+      if(stFilter.length&&stFilter.indexOf(+p.status)<0)stFilter.push(+p.status); // 絞り込みで隠れているピンは表示に追加
+      map.setView([p.lat,p.lng],Math.max(map.getZoom(),18));
+      closeListPanel();
+      if(editing)openSheet(JSON.parse(JSON.stringify(p)));else render();
+    };
+    if(editing&&draft&&draft.id===p.id){map.setView([p.lat,p.lng],Math.max(map.getZoom(),18));closeListPanel();return}
+    if(editing&&isDirty())confirmDiscard("move",go);else go();
   });
+  layoutPanels();
 }
 $("cnt").addEventListener("click",function(e){
+  var f=e.target.closest("[data-f]");
+  if(f){var i=+f.getAttribute("data-f"),k=stFilter.indexOf(i);if(k>=0)stFilter.splice(k,1);else stFilter.push(i);render();return}
+  if(e.target.closest("#fall")){stFilter=[];render();return}
   var el=e.target.closest("[data-status]");if(!el)return;
   openStatusList(+el.getAttribute("data-status"));
 });
@@ -543,17 +601,78 @@ function collectForm(){
   draft.name=$("pn").value.trim();draft.floor=$("pf").value.trim();draft.address=$("pa").value.trim();
   draft.hazard=$("ph").value.trim();draft.note=$("pt").value.trim();
   draft.startAt=fromInput($("ps0").value);draft.endAt=fromInput($("ps1").value);
+  $$(".step").forEach(function(st){var i=st.querySelector("input"),v=parseInt(i.value,10);
+    draft[st.getAttribute("data-k")]=isNaN(v)||v<0?0:Math.min(v,99999)});
 }
 function lookupAddress(d,force){
   api("GET","/api/reverse?lat="+d.lat+"&lng="+d.lng+"&lang="+lang).then(function(r){
-    if(draft===d&&$("pa")&&(force||!$("pa").value)&&r.label){$("pa").value=r.label;d.address=r.label}
+    if(draft===d&&$("pa")&&(force||!$("pa").value)&&r.label){$("pa").value=r.label;d.address=r.label;if(!force&&base)base.address=r.label}
   },function(){});
 }
-function openSheet(d){
-  closeListPanel();closeSearch();d.missing=d.missing||0;draft=d;closeSheet(true);$("bar").classList.add("hide");render();
+/* ---------- 未保存の変更の警告・ピン切り替え ---------- */
+function fieldsOf(d){return{name:d.name||"",floor:d.floor||"",address:d.address||"",hazard:d.hazard||"",note:d.note||"",
+  status:+d.status,go:!!d.go,live:+d.live||0,dead:+d.dead||0,missing:+d.missing||0,startAt:d.startAt||null,endAt:d.endAt||null}}
+function isDirty(){
+  if(!draft||!$("sheet")||!base)return false;
+  collectForm();
+  return JSON.stringify(fieldsOf(draft))!==JSON.stringify(base);
+}
+function confirmDiscard(kind,onOk){
+  var old=$("cfm");if(old)old.remove();
+  var el=document.createElement("div");el.className="modal";el.id="cfm";
+  var close=kind==="close";
+  el.innerHTML='<div class="box" role="alertdialog" aria-modal="true" aria-labelledby="cfmT"><h1 id="cfmT">'+esc(t("unsavedTitle"))+'</h1>'+
+    '<p class="cfm-msg">'+esc(t(close?"unsavedClose":"unsavedMove"))+'</p>'+
+    '<div class="mrow"><button id="cfmKeep" class="solid" type="button">'+esc(t("keepEditing"))+'</button>'+
+    '<button id="cfmOk" class="del" type="button">'+esc(t(close?"discardClose":"discardMove"))+'</button></div></div>';
+  document.body.appendChild(el);
+  var onKey=function(e){if(e.key==="Escape"){e.preventDefault();done()}};
+  var done=function(){el.remove();document.removeEventListener("keydown",onKey)};
+  document.addEventListener("keydown",onKey);
+  $("cfmKeep").onclick=done;
+  $("cfmOk").onclick=function(){done();onOk()};
+  el.addEventListener("click",function(e){if(e.target===el)done()});
+  $("cfmKeep").focus();
+}
+function requestClose(){
+  if(!$("sheet"))return;
+  if(isDirty())confirmDiscard("close",function(){closeSheet()});else closeSheet();
+}
+// 編集画面を開いたまま別のピンを選ぶ：未保存の変更があるときだけ警告、なければ即座に切り替え
+function openPinEdit(p,pan){
+  var view=function(){if(pan)map.setView([p.lat,p.lng],Math.max(map.getZoom(),18))};
+  if($("sheet")&&draft&&draft.id===p.id){view();return}
+  var go=function(){view();openSheet(JSON.parse(JSON.stringify(p)))};
+  if($("sheet")&&isDirty())confirmDiscard("move",go);else go();
+}
+// 狭い画面で編集画面と一覧を同時に出すとき、重ならないように高さを分ける
+function revealUnderSheet(d){
+  var sh=$("sheet");if(!sh)return;
+  var W=$("stage").clientWidth,H=$("stage").clientHeight,pt=map.latLngToContainerPoint([d.lat,d.lng]);
+  if(window.innerWidth>=720){
+    var vw=W-sh.offsetWidth;
+    if(pt.x>vw-30)map.panBy([pt.x-vw/2,0],{animate:true});
+  }else{
+    var vis=H-sh.offsetHeight;
+    if(pt.y>vis-40)map.panBy([0,pt.y-Math.max(vis*0.55,110)],{animate:true});
+  }
+}
+function layoutPanels(){
+  var sh=$("sheet"),lp=$("listpanel");
+  if(sh)sh.style.maxHeight="";
+  if(lp)lp.style.maxHeight="";
+  if(!sh||!lp||window.innerWidth>=720)return;
+  var H=$("stage").clientHeight,top=parseFloat(lp.style.top)||0,shH=Math.round(H*0.5);
+  sh.style.maxHeight=shH+"px";
+  lp.style.maxHeight=Math.max(110,H-shH-8-top)+"px";
+}
+function openSheet(d,keep){
+  closeSearch();d.missing=d.missing||0;draft=d;closeSheet(true);$("bar").classList.add("hide");render();
   var el=document.createElement("div");el.className="sheet";el.id="sheet";
   var seg=function(k,items,cur){return '<div class="seg" data-k="'+k+'">'+items.map(function(x){return '<button type="button" data-v="'+x[0]+'"'+(String(cur)===String(x[0])?' class="on"':'')+'>'+esc(x[1])+'</button>'}).join("")+'</div>'};
-  var stp=function(k,l,v){return '<div class="row"><span>'+esc(l)+'</span><div class="step" data-k="'+k+'"><button type="button" data-d="-1" aria-label="'+esc(t("dec"))+'">－</button><b class="mono">'+v+'</b><button type="button" data-d="1" aria-label="'+esc(t("inc"))+'">＋</button></div></div>'};
+  var stp=function(k,l){return '<div class="row"><span>'+esc(l)+'</span><div class="step" data-k="'+k+'"><button type="button" data-d="-1" aria-label="'+esc(t("dec"))+'">－</button>'+
+    '<input class="num mono" type="number" inputmode="numeric" min="0" max="99999" step="1" aria-label="'+esc(l)+'">'+
+    '<button type="button" data-d="1" aria-label="'+esc(t("inc"))+'">+1</button><button type="button" data-d="10" aria-label="'+esc(t("inc10"))+'">+10</button></div></div>'};
   var isNew=!d.id,own=user&&d.team===user.team;
   var near=isNew?pins.filter(function(p){return distM(p,d)<=DUP_M}).map(function(p){return{p:p,m:Math.round(distM(p,d))}}).sort(function(a,b){return a.m-b.m}).slice(0,3):[];
   var meta=isNew?"":'<div class="meta">'+esc(t("created"))+': '+esc((d.team||"")+" / "+(d.by||""))+
@@ -567,7 +686,7 @@ function openSheet(d){
    '<label>'+esc(t("status"))+'</label>'+
    seg("status",[[0,"□ "+t("st0")],[1,"◪ "+t("st1")],[2,"■ "+t("st2s")]],d.status)+
    '<label>'+esc(t("entry"))+'</label>'+seg("go",[[true,t("goYes")],[false,t("goNo")]],d.go)+
-   stp("missing",t("missing"),d.missing)+stp("live",t("live"),d.live)+stp("dead",t("dead"),d.dead)+
+   stp("missing",t("missing"))+stp("live",t("live"))+stp("dead",t("dead"))+
    '<label for="ph">'+esc(t("hazard"))+'</label><input id="ph" placeholder="'+esc(t("hazardPh"))+'">'+
    '<div class="two"><div><label for="ps0">'+esc(t("startT"))+'</label><div class="trow"><input id="ps0" type="datetime-local"><button type="button" data-now="ps0">'+esc(t("now"))+'</button></div></div></div>'+
    '<div class="two"><div><label for="ps1">'+esc(t("endT"))+'</label><div class="trow"><input id="ps1" type="datetime-local"><button type="button" data-now="ps1">'+esc(t("now"))+'</button></div></div></div>'+
@@ -577,12 +696,14 @@ function openSheet(d){
   // 値はinnerHTMLではなくプロパティで入れる（XSS対策）
   $("pn").value=d.name||"";$("pf").value=d.floor||"";$("pa").value=d.address||"";$("ph").value=d.hazard||"";$("pt").value=d.note||"";
   $("ps0").value=toInput(d.startAt);$("ps1").value=toInput(d.endAt);
+  $$(".step").forEach(function(st){st.querySelector("input").value=d[st.getAttribute("data-k")]||0});
+  collectForm();if(!keep||!base)base=fieldsOf(draft);   // 編集開始時点の内容を記録（未保存の変更の検出用）
   if(isNew&&!d.address)lookupAddress(d,false);
   $("pag").onclick=function(){lookupAddress(d,true)};
   el.addEventListener("click",function(e){
     var b=e.target.closest("button");if(!b)return;
     if(b.hasAttribute("data-near")){var id=b.getAttribute("data-near");var p=pins.filter(function(x){return String(x.id)===id})[0];
-      if(p){map.setView([p.lat,p.lng],Math.max(map.getZoom(),18));draft=null;openSheet(JSON.parse(JSON.stringify(p)))}return}
+      if(p)openPinEdit(p,true);return}
     if(b.hasAttribute("data-now")){$(b.getAttribute("data-now")).value=toInput(Date.now());return}
     var g=b.parentNode.getAttribute("data-k");
     if(b.hasAttribute("data-v")){var v=b.getAttribute("data-v");draft[g]=g==="go"?v==="true":+v;
@@ -591,13 +712,25 @@ function openSheet(d){
       if(g==="status"&&draft.status>=1&&!$("ps0").value)$("ps0").value=toInput(Date.now());
       if(g==="status"&&draft.status===2&&!$("ps1").value)$("ps1").value=toInput(Date.now());
     }
-    else if(b.hasAttribute("data-d")){draft[g]=Math.max(0,draft[g]+ +b.getAttribute("data-d"));b.parentNode.querySelector("b").textContent=draft[g]}
+    else if(b.hasAttribute("data-d")){draft[g]=Math.min(99999,Math.max(0,(+draft[g]||0)+ +b.getAttribute("data-d")));b.parentNode.querySelector("input").value=draft[g]}
   });
-  $("pc").onclick=function(){closeSheet()};
+  // 数字は直接入力もできる（入力中は空欄を許可し、確定時に整える）
+  el.addEventListener("input",function(e){
+    var i=e.target;if(!i.classList||!i.classList.contains("num"))return;
+    var v=parseInt(i.value,10);draft[i.parentNode.getAttribute("data-k")]=isNaN(v)||v<0?0:Math.min(v,99999);
+  });
+  el.addEventListener("change",function(e){
+    var i=e.target;if(!i.classList||!i.classList.contains("num"))return;
+    i.value=draft[i.parentNode.getAttribute("data-k")];
+  });
+  el.addEventListener("focusin",function(e){var i=e.target;if(i.classList&&i.classList.contains("num"))i.select()});
+  layoutPanels();
+  if(!keep)revealUnderSheet(d);
+  $("pc").onclick=requestClose;
   $("ps").onclick=save;
   if($("pd"))$("pd").onclick=del;
 }
-function closeSheet(keep){var s=$("sheet");if(s)s.remove();if(!keep){draft=null;if(user){$("bar").classList.remove("hide");render()}}}
+function closeSheet(keep){var s=$("sheet");if(s)s.remove();if(!keep){draft=null;base=null;if(user){$("bar").classList.remove("hide");render()}}layoutPanels()}
 function replaceLocal(oldId,saved){
   var found=false;
   pins=pins.map(function(p){if(p.id===oldId){found=true;return saved}return p});
