@@ -157,6 +157,17 @@ input[type=datetime-local]{font-size:15px;padding:.3em 0}
 .cfm-msg{margin:0 0 6px;font-size:15px;line-height:1.7}
 .mrow .del{color:var(--warn);border-color:var(--warn)}
 .mrow .del:hover{background:var(--warn);color:var(--hi-ink)}
+/* ---------- v2.2 各隊の位置 ---------- */
+.tl3{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.tl3 button{min-height:34px;padding:2px 10px;font-size:12px;border-width:2px;border-color:var(--line);background:var(--panel);color:var(--ink)}
+.tl3 button.on{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink);background:var(--panel);color:var(--ink)}
+.tl3 button:hover{background:var(--hi);color:var(--hi-ink)}
+.nearteams{margin:10px 0 0;padding:8px 10px;border:2px solid var(--line);background:var(--bg)}
+.nt-h{font-size:13px;font-weight:700;margin-bottom:4px}
+.nt-row{display:flex;gap:12px;align-items:baseline;font-size:15px;padding:2px 0}
+.nt-row b{min-width:4em}
+.nt-row.old span:last-child{color:var(--warn);font-weight:700}
+.nt-none{font-size:13px;opacity:.75}
 </style>
 </head>
 <body>
@@ -185,6 +196,7 @@ input[type=datetime-local]{font-size:15px;padding:.3em 0}
         <select id="ml" data-i18n-aria="layerLabel"></select>
         <div class="net" id="net" role="status" aria-live="polite"></div>
       </div>
+      <div class="tl3"><button id="shareBtn" type="button"></button><button id="teamsBtn" type="button"></button></div>
     </div>
     <div class="zoom"><button id="zi" type="button" data-i18n-aria="zoomIn">＋</button><button id="zo" type="button" data-i18n-aria="zoomOut">－</button><button id="zc" type="button" data-i18n-aria="toMe">◎</button><button id="zq" type="button" data-i18n-aria="shareQR" class="mono">QR</button></div>
     <div class="hint hide" id="hint" data-i18n="tapMap"></div>
@@ -226,6 +238,8 @@ ja:{title:"捜索状況共有",login:"ログイン",register:"新規登録",team
  layerLabel:"地図の種類",layerOsm:"OSM",layerStd:"地理院地図",layerPale:"地理院 淡色",layerPhoto:"航空写真",
  unsavedTitle:"変更が保存されていません",unsavedClose:"このまま閉じると、入力した内容は失われます。",unsavedMove:"このまま別のピンへ移動すると、入力した内容は失われます。",
  keepEditing:"編集を続ける",discardClose:"破棄して閉じる",discardMove:"破棄して移動",showAll:"全て表示",filterOnly:"{s}だけ表示",
+ shareOn:"位置共有：ON",shareOff:"位置共有：OFF",teamsOn:"隊の位置：表示",teamsOff:"隊の位置：非表示",
+ nearTeams:"近い隊（応援の候補）",nearNone:"位置を共有している隊がありません",justNow:"たった今",agoMin:"{n}分前",agoHour:"{n}時間前",
  lang:"EN",locale:"ja-JP"},
 en:{title:"Search Status Share",login:"Log in",register:"Sign up",team:"Team",id:"ID",password:"Password",startReg:"Sign up & start",
  shareQR:"Share via QR",theme:"Day/Night",logout:"Log out",map:"Map",zoomIn:"Zoom in",zoomOut:"Zoom out",toMe:"My location",tapMap:"Tap the map",
@@ -246,6 +260,8 @@ en:{title:"Search Status Share",login:"Log in",register:"Sign up",team:"Team",id
  layerLabel:"Map type",layerOsm:"OSM",layerStd:"GSI map",layerPale:"GSI pale",layerPhoto:"Aerial photo",
  unsavedTitle:"Unsaved changes",unsavedClose:"If you close now, your changes will be lost.",unsavedMove:"If you move to another pin now, your changes will be lost.",
  keepEditing:"Keep editing",discardClose:"Discard & close",discardMove:"Discard & move",showAll:"Show all",filterOnly:"Show only {s}",
+ shareOn:"Share location: ON",shareOff:"Share location: OFF",teamsOn:"Teams: shown",teamsOff:"Teams: hidden",
+ nearTeams:"Nearest teams (to send as backup)",nearNone:"No team is sharing its location",justNow:"just now",agoMin:"{n} min ago",agoHour:"{n} h ago",
  lang:"日本語",locale:"en-GB"}};
 var lang=S.get("ss_lang")==="en"?"en":"ja";
 function t(k,o){var s=I18N[lang][k];if(s==null)s=I18N.ja[k]!=null?I18N.ja[k]:k;
@@ -256,8 +272,8 @@ function applyI18n(){
   $$("[data-i18n]").forEach(function(el){el.textContent=t(el.getAttribute("data-i18n"))});
   $$("[data-i18n-aria]").forEach(function(el){el.setAttribute("aria-label",t(el.getAttribute("data-i18n-aria")))});
   $$(".lg").forEach(function(el){el.textContent=t("lang")});
-  setMode(mode);renderLayerSelect();
-  if(user){render();renderNet();if(draft){collectForm();openSheet(draft,true)}if($("srch"))openSearch()}
+  setMode(mode);renderToggles();renderLayerSelect();
+  if(user){render();renderNet();renderTeams();if(draft){collectForm();openSheet(draft,true)}if($("srch"))openSearch()}
 }
 $$(".lg").forEach(function(el){el.onclick=function(){lang=lang==="ja"?"en":"ja";S.set("ss_lang",lang);applyI18n()}});
 
@@ -299,6 +315,9 @@ $("go").onclick=submit;
 var user=null,pins=[],gps=null,placing=false,draft=null;
 var c={lat:35.6812,lng:139.7671};
 var online=true,lastSync=0,pollTimer=null,teamFilter=S.get("ss_teamf")||"all";
+var teamPos=[],posSkew=0;                       // 各隊の位置 / サーバー時刻との差
+var shareLoc=S.get("ss_share")!==false,showTeams=S.get("ss_showteams")!==false;
+var watchId=null,lastSent=0,lastSentPos=null;
 var POLL_MS=10000,DUP_M=30;
 var stFilter=[],base=null; // stFilter: 地図に表示する状況（空＝すべて） / base: 編集開始時の入力内容
 
@@ -307,15 +326,22 @@ function enter(u){
   $("auth").classList.add("hide");$("app").classList.remove("hide");
   $("who").textContent=u.team+" / "+u.id;
   setTimeout(function(){map.invalidateSize();render();locate(true)},0);
+  startShare();
   sync();
   clearInterval(pollTimer);pollTimer=setInterval(function(){if(!document.hidden)sync()},POLL_MS);
 }
 function logout(){
-  if(user&&user.token)api("POST","/api/logout")["catch"](function(){});
+  stopWatch();teamPos=[];renderTeams();
+  if(user&&user.token){ // 先に自分の位置を消してから、ログアウトする
+    var tk={Authorization:"Bearer "+user.token};
+    fetch("/api/position",{method:"DELETE",headers:tk}).then(function(){return fetch("/api/logout",{method:"POST",headers:tk})})["catch"](function(){});
+  }
   clearInterval(pollTimer);S.set("ss_session",null);user=null;pins=[];closeSheet();closeSearch();
   $("app").classList.add("hide");$("auth").classList.remove("hide");$("pw").value=""}
 $("out").onclick=function(){if($("sheet")&&isDirty())confirmDiscard("close",logout);else logout()};
-document.addEventListener("visibilitychange",function(){if(!document.hidden&&user)sync()});
+document.addEventListener("visibilitychange",function(){
+  if(!document.hidden&&user){sync();if(shareLoc){startShare();getPos().then(function(p){lastSent=0;sendPos(p)},function(){})}}
+});
 window.addEventListener("online",function(){if(user)sync()});
 window.addEventListener("offline",function(){online=false;renderNet()});
 
@@ -375,7 +401,7 @@ function sync(){
         var cur=list.filter(function(p){return p.id===draft.id})[0];
         if(cur&&cur.t>draft.t&&cur.updatedBy!==user.id){draft._warned=true;toast(t("otherUpdated"),4000)}
       }
-      pins=withQueue(list);render();renderNet();
+      pins=withQueue(list);render();renderNet();fetchPositions();
     },function(e){
       if(e&&e._status===401){toast(t("sessionExpired"));logout();return}
       if(e&&e._net){online=false;pins=withQueue(pins.filter(function(p){return !p._pending||!isTmp(p.id)}));render();renderNet();return}
@@ -520,6 +546,84 @@ function showGps(p){
 $("zi").onclick=function(){map.zoomIn()};
 $("zo").onclick=function(){map.zoomOut()};
 $("zc").onclick=function(){locate(true)};
+
+/* ---------- 各隊の位置（本部が地図で確認 / 位置の古さを表示） ---------- */
+var AGE_STALE=2*60*1000,AGE_OLD=10*60*1000; // 2分以内=新しい / 10分以上=古い（画面を閉じている可能性）
+var teamLayer=L.layerGroup().addTo(map);
+function nowS(){return Date.now()+posSkew}
+function ageLevel(a){return a<AGE_STALE?0:a<AGE_OLD?1:2}
+function fmtAge(a){
+  if(a<60000)return t("justNow");
+  var m=Math.floor(a/60000);
+  return m<60?t("agoMin",{n:m}):t("agoHour",{n:Math.floor(m/60)});
+}
+function fmtDist(m){return m<1000?Math.round(m)+" m":(m/1000).toFixed(1)+" km"}
+function teamIcon(p,age,lv){
+  var dash=lv===2?' stroke-dasharray="3 2"':'',txt=(lv===2?"! ":"")+fmtAge(age);
+  var svg='<svg width="96" height="60" viewBox="-48 -30 96 60" style="overflow:visible" opacity="'+[1,.8,.55][lv]+'">'+
+    '<circle r="10" fill="var(--panel)" stroke="var(--ink)" stroke-width="3"'+dash+'/><path d="M0,-6 L5,5 L0,2.5 L-5,5 Z" fill="var(--ink)"/>'+
+    '<text y="-17" text-anchor="middle" font-size="12">'+esc(p.team)+'</text>'+
+    '<text y="29" text-anchor="middle" font-size="11"'+(lv===2?' style="fill:var(--warn)"':'')+'>'+esc(txt)+'</text></svg>';
+  return L.divIcon({html:svg,className:"pin-ic",iconSize:[96,60],iconAnchor:[48,30]});
+}
+function renderTeams(){
+  teamLayer.clearLayers();
+  if(!user)return;
+  if(showTeams)teamPos.forEach(function(p){
+    if(p.id===user.id)return; // 自分の位置は、いつもの現在地マークで表示
+    var age=nowS()-p.t,lv=ageLevel(age);
+    var m=L.marker([p.lat,p.lng],{icon:teamIcon(p,age,lv),zIndexOffset:2000});
+    m.on("click",function(){toast(p.team+"　"+fmtAge(age),3000)});
+    teamLayer.addLayer(m);
+  });
+  updateNearest();
+}
+function fetchPositions(){
+  api("GET","/api/positions").then(function(r){
+    teamPos=r.positions||[];posSkew=(r.now||Date.now())-Date.now();renderTeams();
+  },function(){});
+}
+// 編集画面：この現場に近い隊（応援の候補）を、距離の近い順に最大3隊
+function updateNearest(){
+  var el=$("nearteams");if(!el||!draft)return;
+  var ex=draft.team||(user&&user.team),best={};
+  teamPos.forEach(function(p){
+    if(p.team===ex)return;
+    var d=distM(p,draft);
+    if(!best[p.team]||d<best[p.team].d)best[p.team]={p:p,d:d};
+  });
+  var list=Object.keys(best).map(function(k){return best[k]}).sort(function(a,b){return a.d-b.d}).slice(0,3);
+  el.innerHTML='<div class="nt-h">'+esc(t("nearTeams"))+'</div>'+(list.length?list.map(function(x){
+    var age=nowS()-x.p.t,lv=ageLevel(age);
+    return '<div class="nt-row'+(lv===2?' old':'')+'"><b>'+esc(x.p.team)+'</b><span class="mono">'+fmtDist(x.d)+'</span><span>'+(lv===2?'! ':'')+esc(fmtAge(age))+'</span></div>';
+  }).join(""):'<div class="nt-none">'+esc(t("nearNone"))+'</div>');
+}
+// 位置の送信：動いたとき(20m以上・15秒おき)と、止まっていても60秒おきに送る。画面を消している間は端末が位置を止める
+function sendPos(cur){
+  api("POST","/api/position",{lat:cur.lat,lng:cur.lng,accuracy:cur.accuracy}).then(function(){lastSent=Date.now();lastSentPos=cur},function(){});
+}
+function startShare(){
+  stopWatch();
+  if(!user||!shareLoc||!navigator.geolocation)return;
+  watchId=navigator.geolocation.watchPosition(function(p){
+    var cur={lat:p.coords.latitude,lng:p.coords.longitude,accuracy:p.coords.accuracy},now=Date.now();
+    gps={lat:cur.lat,lng:cur.lng};showGps(gps);
+    var moved=lastSentPos?distM(lastSentPos,cur):1e9;
+    if(now-lastSent>=60000||(now-lastSent>=15000&&moved>=20))sendPos(cur);
+  },function(){},{enableHighAccuracy:true,maximumAge:5000,timeout:30000});
+}
+function stopWatch(){if(watchId!=null&&navigator.geolocation){navigator.geolocation.clearWatch(watchId)}watchId=null}
+function renderToggles(){
+  var a=$("shareBtn"),b=$("teamsBtn");
+  a.textContent=t(shareLoc?"shareOn":"shareOff");a.classList.toggle("on",shareLoc);a.setAttribute("aria-pressed",shareLoc);
+  b.textContent=t(showTeams?"teamsOn":"teamsOff");b.classList.toggle("on",showTeams);b.setAttribute("aria-pressed",showTeams);
+}
+$("shareBtn").onclick=function(){
+  shareLoc=!shareLoc;S.set("ss_share",shareLoc);renderToggles();
+  if(shareLoc){startShare();getPos().then(function(p){lastSent=0;sendPos(p)},function(){})}
+  else{stopWatch();lastSentPos=null;api("DELETE","/api/position")["catch"](function(){})}
+};
+$("teamsBtn").onclick=function(){showTeams=!showTeams;S.set("ss_showteams",showTeams);renderToggles();renderTeams()};
 
 /* ---------- 状況別リスト ---------- */
 function closeListPanel(){var el=$("listpanel");if(el)el.remove();layoutPanels()}
@@ -680,6 +784,7 @@ function openSheet(d,keep){
   el.innerHTML='<div class="sh-top"><h2>'+esc(isNew?t("newPin"):t("editPin"))+(d._pending?'<span class="tag">'+esc(t("unsent"))+'</span>':'')+'</h2><button id="pc" type="button">'+esc(t("close"))+'</button><button class="solid" id="ps" type="button">'+esc(t("save"))+'</button></div>'+
    '<div class="co mono" style="margin-top:8px">'+d.lat.toFixed(5)+', '+d.lng.toFixed(5)+'</div>'+meta+
    (near.length?'<div class="warnbox" role="alert">⚠ '+esc(t("dupWarn"))+near.map(function(x){return '<button type="button" data-near="'+esc(x.p.id)+'">'+esc((x.p.name||t("unnamed"))+" — "+t("st"+x.p.status)+" · "+(x.p.team||"")+" · "+x.m+"m")+'</button>'}).join("")+'</div>':'')+
+   '<div class="nearteams" id="nearteams"></div>'+
    '<div class="two"><div><label for="pn">'+esc(t("name"))+'</label><input id="pn" placeholder="'+esc(t("namePh"))+'"></div>'+
    '<div style="flex:0 0 32%"><label for="pf">'+esc(t("floor"))+'</label><input id="pf" placeholder="'+esc(t("floorPh"))+'"></div></div>'+
    '<div class="lrow"><label for="pa">'+esc(t("address"))+'</label><button type="button" class="lbtn" id="pag">'+esc(t("addrGet"))+'</button></div><input id="pa" placeholder="'+esc(t("addrPh"))+'">'+
@@ -693,6 +798,7 @@ function openSheet(d,keep){
    '<label for="pt">'+esc(t("note"))+'</label><textarea id="pt" rows="3" placeholder="'+esc(t("notePh"))+'"></textarea>'+
    (d.id&&(own||isTmp(d.id))?'<div class="acts"><button class="del" id="pd" type="button">'+esc(t("del"))+'</button></div>':'');
   $("stage").appendChild(el);
+  updateNearest();
   // 値はinnerHTMLではなくプロパティで入れる（XSS対策）
   $("pn").value=d.name||"";$("pf").value=d.floor||"";$("pa").value=d.address||"";$("ph").value=d.hazard||"";$("pt").value=d.note||"";
   $("ps0").value=toInput(d.startAt);$("ps1").value=toInput(d.endAt);
