@@ -12,6 +12,14 @@
  *   POST   /api/position   自分の現在地を送る（各隊の位置共有。最新の1件だけ保存）
  *   DELETE /api/position   自分の現在地を消す（位置共有をやめるとき）
  *   GET    /api/positions  各隊の現在地と、最終更新時刻（サーバー時刻）の一覧
+ *   GET    /api/victims                 要救助者（V）の一覧
+ *   POST   /api/pins/:id/victims        要救助者（V）を追加
+ *   PUT    /api/victims/:id             要救助者（V）を更新（ログイン中なら誰でも可）
+ *   DELETE /api/victims/:id             要救助者（V）を削除（追加した隊のみ）
+ *   GET    /api/pins/:id/photos         写真の一覧（データ本体は含まない）
+ *   POST   /api/pins/:id/photos         写真を追加（本文 = 画像そのもの。最大1MB）
+ *   GET    /api/photos/:id              写真の画像
+ *   DELETE /api/photos/:id              写真を削除（撮影した隊のみ）
  *   GET    /api/geocode?q=        住所 → 座標（OpenStreetMap Nominatim を中継）
  *   GET    /api/reverse?lat=&lng= 座標 → 住所
  *
@@ -235,7 +243,129 @@ async function deletePin(env, user, id) {
   const pin = await env.DB.prepare("SELECT team FROM pins WHERE id = ?").bind(id).first();
   if (!pin) return json({ ok: true }); // 既に無い
   if (pin.team !== user.team) return err("forbidden", 403); // 他の隊のピンは削除不可
-  await env.DB.prepare("DELETE FROM pins WHERE id = ?").bind(id).run();
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM victims WHERE pin_id = ?").bind(id),
+    env.DB.prepare("DELETE FROM photos WHERE pin_id = ?").bind(id),
+    env.DB.prepare("DELETE FROM pins WHERE id = ?").bind(id),
+  ]);
+  return json({ ok: true });
+}
+
+// ---------- 要救助者（INSARAGの「V」マーク） ----------
+// status: 0=要救助者の可能性(V) / 1=生存確認(L) / 2=死亡確認(D) / 3=救出・搬出済み
+const VICTIM_COLS = "id, pin_id, lat, lng, floor, status, note, team, created_by, updated_by, t";
+
+function rowToVictim(r) {
+  return {
+    id: r.id, pinId: r.pin_id, lat: r.lat, lng: r.lng, floor: r.floor, status: r.status, note: r.note,
+    team: r.team, by: r.created_by, updatedBy: r.updated_by, t: r.t,
+  };
+}
+
+function cleanVictim(b) {
+  const lat = Number(b.lat), lng = Number(b.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  const str = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+  return {
+    lat,
+    lng,
+    floor: str(b.floor, 30),
+    status: [0, 1, 2, 3].includes(Number(b.status)) ? Number(b.status) : 0,
+    note: str(b.note, 500),
+  };
+}
+
+async function listVictims(env) {
+  const { results } = await env.DB.prepare(`SELECT ${VICTIM_COLS} FROM victims ORDER BY id`).all();
+  return json(results.map(rowToVictim));
+}
+
+async function createVictim(request, env, user, pinId) {
+  const body = await readBody(request);
+  if (!body) return err("too_large", 413);
+  const v = cleanVictim(body);
+  if (!v) return err("invalid", 400);
+  const pin = await env.DB.prepare("SELECT id FROM pins WHERE id = ?").bind(pinId).first();
+  if (!pin) return err("not_found", 404);
+  const row = await env.DB.prepare(
+    `INSERT INTO victims (pin_id, lat, lng, floor, status, note, team, created_by, updated_by, t)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING ${VICTIM_COLS}`
+  )
+    .bind(pinId, v.lat, v.lng, v.floor, v.status, v.note, user.team, user.id, user.id, Date.now())
+    .first();
+  return json(rowToVictim(row));
+}
+
+async function updateVictim(request, env, user, id) {
+  const body = await readBody(request);
+  if (!body) return err("too_large", 413);
+  const v = cleanVictim(body);
+  if (!v) return err("invalid", 400);
+  // 状況（生存確認・救出済みなど）は他の隊が更新することもあるので、ログイン中なら誰でも更新可
+  const row = await env.DB.prepare(
+    `UPDATE victims SET lat=?, lng=?, floor=?, status=?, note=?, updated_by=?, t=? WHERE id=? RETURNING ${VICTIM_COLS}`
+  )
+    .bind(v.lat, v.lng, v.floor, v.status, v.note, user.id, Date.now(), id)
+    .first();
+  return row ? json(rowToVictim(row)) : err("not_found", 404);
+}
+
+async function deleteVictim(env, user, id) {
+  const v = await env.DB.prepare("SELECT team FROM victims WHERE id = ?").bind(id).first();
+  if (!v) return json({ ok: true });
+  if (v.team !== user.team) return err("forbidden", 403);
+  await env.DB.prepare("DELETE FROM victims WHERE id = ?").bind(id).run();
+  return json({ ok: true });
+}
+
+// ---------- 写真 ----------
+// 端末側で縮小してから送るので、1枚あたり最大1MB。D1にBLOBとして保存する
+const PHOTO_MAX_BYTES = 1024 * 1024;
+const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+async function listPhotos(env, pinId) {
+  const { results } = await env.DB.prepare(
+    "SELECT id, pin_id, content_type, size, team, created_by, t FROM photos WHERE pin_id = ? ORDER BY id"
+  )
+    .bind(pinId)
+    .all();
+  return json(results.map((r) => ({ id: r.id, pinId: r.pin_id, size: r.size, team: r.team, by: r.created_by, t: r.t })));
+}
+
+async function createPhoto(request, env, user, pinId) {
+  const type = (request.headers.get("Content-Type") || "").split(";")[0].trim().toLowerCase();
+  if (!PHOTO_TYPES.includes(type)) return err("invalid_type", 415);
+  const declared = Number(request.headers.get("Content-Length") || 0);
+  if (declared > PHOTO_MAX_BYTES) return err("too_large", 413);
+  const buf = await request.arrayBuffer();
+  if (!buf.byteLength) return err("invalid", 400);
+  if (buf.byteLength > PHOTO_MAX_BYTES) return err("too_large", 413);
+  const pin = await env.DB.prepare("SELECT id FROM pins WHERE id = ?").bind(pinId).first();
+  if (!pin) return err("not_found", 404);
+  const now = Date.now();
+  const row = await env.DB.prepare(
+    `INSERT INTO photos (pin_id, content_type, size, data, team, created_by, t)
+     VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id, pin_id, size, team, created_by, t`
+  )
+    .bind(pinId, type, buf.byteLength, buf, user.team, user.id, now)
+    .first();
+  return json({ id: row.id, pinId: row.pin_id, size: row.size, team: row.team, by: row.created_by, t: row.t });
+}
+
+async function getPhoto(env, id) {
+  const row = await env.DB.prepare("SELECT content_type, data FROM photos WHERE id = ?").bind(id).first();
+  if (!row) return err("not_found", 404);
+  const data = row.data instanceof ArrayBuffer ? row.data : new Uint8Array(row.data);
+  return new Response(data, {
+    headers: { "Content-Type": row.content_type, "Cache-Control": "private, max-age=86400" },
+  });
+}
+
+async function deletePhoto(env, user, id) {
+  const p = await env.DB.prepare("SELECT team FROM photos WHERE id = ?").bind(id).first();
+  if (!p) return json({ ok: true });
+  if (p.team !== user.team) return err("forbidden", 403);
+  await env.DB.prepare("DELETE FROM photos WHERE id = ?").bind(id).run();
   return json({ ok: true });
 }
 
@@ -358,6 +488,36 @@ export default {
         if (!user) return err("unauthorized", 401);
         if (method !== "GET") return err("method_not_allowed", 405);
         return await listPositions(env);
+      }
+      if (path === "/api/victims") {
+        if (!user) return err("unauthorized", 401);
+        if (method !== "GET") return err("method_not_allowed", 405);
+        return await listVictims(env);
+      }
+      let r = path.match(/^\/api\/pins\/(\d+)\/(victims|photos)$/);
+      if (r) {
+        if (!user) return err("unauthorized", 401);
+        const pinId = Number(r[1]);
+        if (r[2] === "victims") {
+          if (method === "POST") return await createVictim(request, env, user, pinId);
+          return err("method_not_allowed", 405);
+        }
+        if (method === "GET") return await listPhotos(env, pinId);
+        if (method === "POST") return await createPhoto(request, env, user, pinId);
+        return err("method_not_allowed", 405);
+      }
+      r = path.match(/^\/api\/(victims|photos)\/(\d+)$/);
+      if (r) {
+        if (!user) return err("unauthorized", 401);
+        const id = Number(r[2]);
+        if (r[1] === "victims") {
+          if (method === "PUT") return await updateVictim(request, env, user, id);
+          if (method === "DELETE") return await deleteVictim(env, user, id);
+          return err("method_not_allowed", 405);
+        }
+        if (method === "GET") return await getPhoto(env, id);
+        if (method === "DELETE") return await deletePhoto(env, user, id);
+        return err("method_not_allowed", 405);
       }
       const m = path.match(/^\/api\/pins\/(\d+)$/);
       if (m) {
