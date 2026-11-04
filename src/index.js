@@ -9,6 +9,9 @@
  *   POST   /api/pins       ピン追加
  *   PUT    /api/pins/:id   ピン更新（ログイン中なら誰でも可。作成した隊・作成者は変更不可）
  *   DELETE /api/pins/:id   ピン削除（ピンを作成した隊のメンバーのみ）
+ *   POST   /api/position   自分の現在地を送る（各隊の位置共有。最新の1件だけ保存）
+ *   DELETE /api/position   自分の現在地を消す（位置共有をやめるとき）
+ *   GET    /api/positions  各隊の現在地と、最終更新時刻（サーバー時刻）の一覧
  *   GET    /api/geocode?q=        住所 → 座標（OpenStreetMap Nominatim を中継）
  *   GET    /api/reverse?lat=&lng= 座標 → 住所
  *
@@ -281,6 +284,44 @@ async function reverse(url, env, ctx) {
   return json({ label: data.display_name || "" });
 }
 
+// ---------- 各隊の位置 ----------
+const POSITION_TTL_MS = 3 * 60 * 60 * 1000; // 3時間更新がない位置は消す
+
+async function savePosition(request, env, user) {
+  const b = await readBody(request);
+  if (!b) return err("too_large", 413);
+  const lat = Number(b.lat), lng = Number(b.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return err("invalid", 400);
+  const acc = Number(b.accuracy);
+  const accuracy = b.accuracy != null && Number.isFinite(acc) && acc >= 0 ? Math.min(Math.round(acc), 100000) : null;
+  const now = Date.now();
+  await env.DB.batch([
+    env.DB.prepare(
+      "INSERT INTO positions (user_id, lat, lng, accuracy, t) VALUES (?, ?, ?, ?, ?) " +
+        "ON CONFLICT(user_id) DO UPDATE SET lat = excluded.lat, lng = excluded.lng, accuracy = excluded.accuracy, t = excluded.t"
+    ).bind(user.id, lat, lng, accuracy, now),
+    env.DB.prepare("DELETE FROM positions WHERE t < ?").bind(now - POSITION_TTL_MS),
+  ]);
+  return json({ ok: true, t: now });
+}
+
+async function deletePosition(env, user) {
+  await env.DB.prepare("DELETE FROM positions WHERE user_id = ?").bind(user.id).run();
+  return json({ ok: true });
+}
+
+async function listPositions(env) {
+  const now = Date.now();
+  const { results } = await env.DB.prepare(
+    "SELECT p.user_id AS id, u.team AS team, p.lat, p.lng, p.accuracy, p.t FROM positions p " +
+      "JOIN users u ON u.id = p.user_id WHERE p.t > ? ORDER BY p.t DESC"
+  )
+    .bind(now - POSITION_TTL_MS)
+    .all();
+  // now: サーバーの現在時刻。端末の時計がずれていても「何分前か」を正しく出すため一緒に返す
+  return json({ now, positions: results });
+}
+
 // ---------- ルーティング ----------
 export default {
   async fetch(request, env, ctx) {
@@ -306,6 +347,17 @@ export default {
         if (method === "GET") return await listPins(env);
         if (method === "POST") return await createPin(request, env, user);
         return err("method_not_allowed", 405);
+      }
+      if (path === "/api/position") {
+        if (!user) return err("unauthorized", 401);
+        if (method === "POST" || method === "PUT") return await savePosition(request, env, user);
+        if (method === "DELETE") return await deletePosition(env, user);
+        return err("method_not_allowed", 405);
+      }
+      if (path === "/api/positions") {
+        if (!user) return err("unauthorized", 401);
+        if (method !== "GET") return err("method_not_allowed", 405);
+        return await listPositions(env);
       }
       const m = path.match(/^\/api\/pins\/(\d+)$/);
       if (m) {
