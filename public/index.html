@@ -175,6 +175,49 @@ input[type=datetime-local]{font-size:15px;padding:.3em 0}
 .nt-row b{min-width:4em}
 .nt-row.old span:last-child{color:var(--warn);font-weight:700}
 .nt-none{font-size:13px;opacity:.75}
+/* ---------- v2.3 本部/隊員・階数・かんたん操作 ---------- */
+.role{margin:10px 0 0;padding:6px 12px 10px;border:2px solid var(--line);background:transparent}
+.role legend{font-size:13px;font-weight:700;padding:0 6px}
+.rd{display:flex;align-items:center;gap:10px;min-height:44px;margin:0;font-size:16px;font-weight:700;opacity:1}
+.rd input{width:22px;height:22px;flex:none;margin:0;padding:0;border:0;accent-color:var(--ink)}
+.quick{margin-top:12px}
+.qname{font-weight:700;font-size:17px}
+.quick .seg button{min-height:84px;white-space:pre-line;line-height:1.5;font-size:16px;font-weight:700}
+.dtgl{margin-top:10px;width:100%;display:flex;justify-content:space-between;align-items:center;border-style:dashed}
+.lb{display:block;margin:12px 0 0;font-size:13px;font-weight:700;opacity:.9}
+.fl{margin-top:16px;padding:12px 14px;border:2px solid var(--ink);background:var(--bg)}
+.fl-h{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}
+.fl-h i,.fl-sub i{display:inline-block;width:12px;height:12px;background:var(--ink)}
+.fl-hint{font-size:13px;margin:6px 0 0;opacity:.85}
+.fl-dim{display:flex;gap:12px;margin-top:6px}
+.fl-dim>div{flex:1}
+.fl-dim input{text-align:center;font-weight:700;font-size:20px}
+.fl-sum{margin-top:12px;font-weight:700}
+.fl-bar{display:flex;gap:4px;margin-top:8px}
+.fl-bar span{flex:1;height:14px}
+.fl-list{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.fl-row{display:flex;align-items:center;gap:10px;width:100%;min-height:56px;padding:0 12px;text-align:left;font-weight:700}
+.fl-row .fl-n{font-family:"Share Tech Mono",monospace;font-size:19px;min-width:42px}
+.fl-row .fl-s{flex:1}
+.fl-row .fl-c{font-family:"Share Tech Mono",monospace;font-size:12px;font-weight:400}
+.fl-row .fl-chips{display:flex;gap:2px;align-items:center}
+.fl-row.open{background:var(--hi);color:var(--hi-ink)}
+.fl-row.sm{min-height:48px;font-size:15px}
+.fl-body{padding:6px 12px 14px;border:2px solid var(--ink);border-top:0;background:var(--panel);margin-top:-8px}
+.sh-body{padding:4px 10px 12px;border:2px solid var(--ink);border-top:0;background:var(--bg);margin-top:-6px}
+.fl-sub{margin-top:16px;font-weight:700;font-size:16px;display:flex;align-items:center;gap:8px}
+.fl-sub i{width:10px;height:10px}
+.autob{margin-top:4px;display:flex;align-items:center;gap:10px;min-height:48px;padding:0 14px;border:2px solid var(--line);background:var(--bg);font-weight:700}
+.autoi{font-family:"Share Tech Mono",monospace;font-size:11px;font-weight:700;letter-spacing:.08em;padding:1px 6px;border:2px solid var(--line);margin-left:6px}
+.rules{margin:6px 0 0;font-size:12px;opacity:.85;line-height:1.7}
+.tots{display:flex;gap:8px;margin-top:4px}
+.tots>div{flex:1;padding:6px;border:2px solid var(--line);background:var(--bg);text-align:center}
+.tots small{display:block;font-size:12px}
+.tots b{font-family:"Share Tech Mono",monospace;font-size:24px}
+.fl-addrow{display:flex;gap:8px;margin-top:12px;align-items:flex-end}
+.fl-addrow input{flex:1}
+.fl-add{margin-top:10px;width:100%;border-style:dashed}
+.fl-del{margin-top:14px;width:100%;color:var(--warn);border-color:var(--warn)}
 /* ---------- v2.4 要救助者（V）・写真 ---------- */
 .sec{margin-top:18px;border-top:2px solid var(--line);padding-top:10px}
 .sec-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
@@ -210,6 +253,10 @@ input[type=datetime-local]{font-size:15px;padding:.3em 0}
     <h1 data-i18n="title"></h1>
     <div class="tabs"><button id="tLogin" class="on" type="button" data-i18n="login"></button><button id="tReg" type="button" data-i18n="register"></button></div>
     <div id="fTeam" class="hide"><label for="team" data-i18n="team"></label><input id="team" autocomplete="organization"></div>
+    <div id="fRole" class="hide"><fieldset class="role"><legend data-i18n="roleLegend"></legend>
+      <label class="rd"><input type="radio" name="role" value="member" checked><span data-i18n="roleMember"></span></label>
+      <label class="rd"><input type="radio" name="role" value="hq"><span data-i18n="roleHq"></span></label></fieldset>
+      <div id="fHq" class="hide"><label for="hqc" data-i18n="hqCode"></label><input id="hqc" type="password" autocomplete="off"></div></div>
     <label for="uid" data-i18n="id"></label><input id="uid" autocomplete="username" autocapitalize="none">
     <label for="pw" data-i18n="password"></label><input id="pw" type="password" autocomplete="current-password">
     <div class="err" id="err" role="alert"></div>
@@ -273,6 +320,16 @@ ja:{title:"捜索状況共有",login:"ログイン",register:"新規登録",team
  keepEditing:"編集を続ける",discardClose:"破棄して閉じる",discardMove:"破棄して移動",showAll:"全て表示",filterOnly:"{s}だけ表示",
  shareOn:"位置共有：ON",shareOff:"位置共有：OFF",teamsOn:"隊の位置：表示",teamsOff:"隊の位置：非表示",
  nearTeams:"近い隊（応援の候補）",nearNone:"位置を共有している隊がありません",justNow:"たった今",agoMin:"{n}分前",agoHour:"{n}時間前",
+ roleLegend:"登録の種類",roleMember:"隊員として登録",roleHq:"本部として登録",hqCode:"本部用の合言葉",hqCodeReq:"本部用の合言葉を入力してください",badHqCode:"本部用の合言葉が違います",hqDisabled:"このサーバーでは本部として登録できません",hqTag:"本部",
+ detailBtn:"詳しく入力",qSt0:"□\n未捜索",qSt1:"◪\n捜索中",qSt2:"■\n捜索済み",
+ floorsT:"階数",floorsHint:"階ごと・店舗ごとに状況を分けて入力できます。",floorsNone:"階数なし",floorsInput:"階数を入力",above:"地上",below:"地下",floorUnit:"階",makeTabs:"{n}階分のタブを作る",makeNone:"階数を入れてください",
+ floorsOffTitle:"階数をやめますか",floorsOffMsg:"階数と、階ごとの入力内容が消えます。",floorsOffOk:"消して階数なしにする",floorsHqOnly:"保存した階数を消せるのは本部だけです",
+ doneOf:"捜索済み {n} / {m}階",floorLabelPh:"例：中2階、屋上",addFloorOk:"＋ 階を追加",floorDup:"同じ名前の階があります",floorDel:"この階を削除",
+ shopsT:"店舗・区画",shopsIn:"（この階の中）",addShop:"＋ 店舗・区画を追加",shopName:"店舗・区画の名前",shopNamePh:"店舗A",shopDel:"この店舗・区画を削除",shopNameReq:"店舗・区画の名前を入力してください",
+ floorNote:"メモ（この階）",bldNote:"メモ（建物）",totals:"人数（店舗・区画の合計）",autoTag:"自動",
+ autoRule:"・捜索中が1つでもあれば、捜索中|・全部が未捜索のときだけ、未捜索|・全部が捜索済みのときだけ、捜索済み|・未捜索と捜索済みが混ざっているときは、捜索中",
+ shopOnlyHint:"進入・危険情報・捜索開始/終了・人数は、店舗・区画の中で入力します。",
+ delTitle:"削除しますか",delFloorMsg:"この階と、中の店舗・区画の内容が消えます。",delShopMsg:"この店舗・区画の内容が消えます。",delOk:"削除する",
  victims:"要救助者（V）",vAdd:"＋ Vを追加",vNone:"登録なし",vSaveFirst:"ピンを保存すると、要救助者（V）と写真を追加できます",
  vNew:"要救助者を追加",vEdit:"要救助者（V）",vs0:"V 可能性あり",vs1:"L 生存確認",vs2:"D 死亡確認",vs3:"救出済み",
  vPlace:"位置",vAtPin:"建物の位置",vAtGps:"現在地",vAtMap:"地図で指定",vTapMap:"要救助者の位置をタップ",
@@ -301,6 +358,16 @@ en:{title:"Search Status Share",login:"Log in",register:"Sign up",team:"Team",id
  keepEditing:"Keep editing",discardClose:"Discard & close",discardMove:"Discard & move",showAll:"Show all",filterOnly:"Show only {s}",
  shareOn:"Share location: ON",shareOff:"Share location: OFF",teamsOn:"Teams: shown",teamsOff:"Teams: hidden",
  nearTeams:"Nearest teams (to send as backup)",nearNone:"No team is sharing its location",justNow:"just now",agoMin:"{n} min ago",agoHour:"{n} h ago",
+ roleLegend:"Account type",roleMember:"Sign up as a field member",roleHq:"Sign up as HQ",hqCode:"HQ passcode",hqCodeReq:"Enter the HQ passcode",badHqCode:"Wrong HQ passcode",hqDisabled:"HQ sign-up is not enabled on this server",hqTag:"HQ",
+ detailBtn:"Full details",qSt0:"□\nNot searched",qSt1:"◪\nSearching",qSt2:"■\nSearched",
+ floorsT:"Floors",floorsHint:"Record status per floor and per shop.",floorsNone:"No floors",floorsInput:"Enter floors",above:"Above ground",below:"Basement",floorUnit:"F",makeTabs:"Create {n} floor tabs",makeNone:"Enter the number of floors",
+ floorsOffTitle:"Remove floors?",floorsOffMsg:"The floors and everything entered per floor will be deleted.",floorsOffOk:"Delete & use no floors",floorsHqOnly:"Only HQ can remove saved floors",
+ doneOf:"Searched {n} / {m} floors",floorLabelPh:"e.g. Mezzanine, Roof",addFloorOk:"+ Add floor",floorDup:"A floor with that name exists",floorDel:"Delete this floor",
+ shopsT:"Shops / areas",shopsIn:"(on this floor)",addShop:"+ Add shop / area",shopName:"Shop / area name",shopNamePh:"Shop A",shopDel:"Delete this shop / area",shopNameReq:"Enter a shop / area name",
+ floorNote:"Notes (this floor)",bldNote:"Notes (building)",totals:"Counts (total of shops / areas)",autoTag:"AUTO",
+ autoRule:"・Searching if any is searching|・Not searched only if all are not searched|・Searched only if all are searched|・A mix of not searched and searched counts as searching",
+ shopOnlyHint:"Entry, hazards, start/end times and counts are entered inside each shop / area.",
+ delTitle:"Delete?",delFloorMsg:"This floor and its shops / areas will be deleted.",delShopMsg:"This shop / area will be deleted.",delOk:"Delete",
  victims:"Victims (V)",vAdd:"+ Add V",vNone:"None yet",vSaveFirst:"Save the pin first to add victims (V) and photos",
  vNew:"Add victim",vEdit:"Victim (V)",vs0:"V possible",vs1:"L alive",vs2:"D dead",vs3:"Rescued",
  vPlace:"Location",vAtPin:"Building",vAtGps:"My location",vAtMap:"Pick on map",vTapMap:"Tap the victim's location",
@@ -318,7 +385,7 @@ function applyI18n(){
   $$("[data-i18n-aria]").forEach(function(el){el.setAttribute("aria-label",t(el.getAttribute("data-i18n-aria")))});
   $$(".lg").forEach(function(el){el.textContent=t("lang")});
   setMode(mode);renderToggles();renderLayerSelect();
-  if(user){render();renderNet();renderTeams();if(draft){collectForm();openSheet(draft,true)}if($("srch"))openSearch()}
+  if(user){$("who").textContent=whoText();render();renderNet();renderTeams();if(draft){collectForm();openSheet(draft,true)}if($("srch"))openSearch()}
 }
 $$(".lg").forEach(function(el){el.onclick=function(){lang=lang==="ja"?"en":"ja";S.set("ss_lang",lang);applyI18n()}});
 
@@ -333,19 +400,23 @@ function api(method,url,body){
 
 /* ---------- auth ---------- */
 var mode="login";
-var ERR_MSG={id_taken:"idTaken",invalid_id:"idRule",weak_password:"pwRule",invalid_credentials:"badCred",missing:"missingIn"};
+var ERR_MSG={id_taken:"idTaken",invalid_id:"idRule",weak_password:"pwRule",invalid_credentials:"badCred",missing:"missingIn",bad_hq_code:"badHqCode",hq_disabled:"hqDisabled"};
 function setMode(m){mode=m;$("tLogin").classList.toggle("on",m==="login");$("tReg").classList.toggle("on",m==="reg");
-  $("fTeam").classList.toggle("hide",m!=="reg");$("go").textContent=m==="login"?t("login"):t("startReg");
+  $("fTeam").classList.toggle("hide",m!=="reg");$("fRole").classList.toggle("hide",m!=="reg");$("go").textContent=m==="login"?t("login"):t("startReg");
   $("pw").autocomplete=m==="login"?"current-password":"new-password";$("err").textContent=""}
 $("tLogin").onclick=function(){setMode("login")};$("tReg").onclick=function(){setMode("reg")};
+function curRole(){var r=document.querySelector('input[name="role"]:checked');return r?r.value:"member"}
+$$('input[name="role"]').forEach(function(r){r.onchange=function(){$("fHq").classList.toggle("hide",curRole()!=="hq")}});
 function submit(){
   var id=$("uid").value.trim(),pw=$("pw").value,team=$("team").value.trim();
   if(mode==="reg"){
     if(!team)return fail(t("teamReq"));
     if(!/^[A-Za-z0-9_-]{3,20}$/.test(id))return fail(t("idRule"));
     if(pw.length<6)return fail(t("pwRule"));
+    var role=curRole(),hq=$("hqc").value;
+    if(role==="hq"&&!hq)return fail(t("hqCodeReq"));
     $("go").disabled=true;
-    api("POST","/api/register",{id:id,password:pw,team:team}).then(enter,authErr)["finally"](function(){$("go").disabled=false});
+    api("POST","/api/register",{id:id,password:pw,team:team,role:role,hqCode:role==="hq"?hq:undefined}).then(enter,authErr)["finally"](function(){$("go").disabled=false});
   }else{
     $("go").disabled=true;
     api("POST","/api/login",{id:id,password:pw}).then(enter,authErr)["finally"](function(){$("go").disabled=false});
@@ -364,18 +435,24 @@ var teamPos=[],posSkew=0;                       // 各隊の位置 / サーバ�
 var shareLoc=S.get("ss_share")!==false,showTeams=S.get("ss_showteams")!==false;
 var watchId=null,lastSent=0,lastSentPos=null;
 var POLL_MS=10000,DUP_M=30;
+var fo={},so={},hadFloors=false; // 階・店舗の開閉 / 保存済みの階があるか
 var victims=[],vplacing=null,photoURLs={};    // 要救助者（V） / 地図で位置を指定中のV / 写真のキャッシュ
 var stFilter=[],base=null; // stFilter: 地図に表示する状況（空＝すべて） / base: 編集開始時の入力内容
 
+function isHq(){return !!user&&user.role==="hq"}
+function whoText(){return user.team+" / "+user.id+(user.role==="hq"?" ["+t("hqTag")+"]":"")}
 function enter(u){
-  user={id:u.id,team:u.team,token:u.token};S.set("ss_session",user);
+  user={id:u.id,team:u.team,token:u.token,role:u.role||"member"};S.set("ss_session",user);
   $("auth").classList.add("hide");$("app").classList.remove("hide");
-  $("who").textContent=u.team+" / "+u.id;
+  $("who").textContent=whoText();
   // 前回の同期データを先に表示（オフラインで開いた場合もピンが見える）
   var cc=S.get(cKey());
   if(cc){pins=withQueue(cc.pins||[]);victims=cc.victims||[];lastSync=cc.t||0}
   setTimeout(function(){map.invalidateSize();render();renderNet();locate(true)},0);
   startShare();
+  api("GET","/api/me").then(function(m){ // 古いセッションでも、種類（隊員/本部）を最新にする
+    if(user&&m&&m.role&&m.role!==user.role){user.role=m.role;S.set("ss_session",user);$("who").textContent=whoText()}
+  },function(){});
   sync();
   clearInterval(pollTimer);pollTimer=setInterval(function(){if(!document.hidden)sync()},POLL_MS);
 }
@@ -386,7 +463,7 @@ function logout(){
     fetch("/api/position",{method:"DELETE",headers:tk}).then(function(){return fetch("/api/logout",{method:"POST",headers:tk})})["catch"](function(){});
   }
   clearInterval(pollTimer);S.set("ss_session",null);user=null;pins=[];victims=[];vplacing=null;closeVictim();closePhoto();closeSheet();closeSearch();renderVictims();
-  $("app").classList.add("hide");$("auth").classList.remove("hide");$("pw").value=""}
+  $("app").classList.add("hide");$("auth").classList.remove("hide");$("pw").value="";$("hqc").value=""}
 $("out").onclick=function(){if($("sheet")&&isDirty())confirmDiscard("close",logout);else logout()};
 document.addEventListener("visibilitychange",function(){
   if(!document.hidden&&user){sync();if(shareLoc){startShare();getPos().then(function(p){lastSent=0;sendPos(p)},function(){})}}
@@ -399,8 +476,47 @@ function qKey(){return "ss_queue_"+(user?user.id:"")}
 function cKey(){return "ss_cache_"+(user?user.id:"")}
 function queue(){return S.get(qKey())||[]}
 function setQueue(q){S.set(qKey(),q)}
+/* ---------- 階・店舗・区画（状況の決め方はサーバーと同じ） ---------- */
+function statusRule(a){
+  if(!a.length)return null;
+  if(a.some(function(x){return x===1}))return 1;
+  if(a.every(function(x){return x===0}))return 0;
+  if(a.every(function(x){return x===2}))return 2;
+  return 1;
+}
+function sumK(list,k){return Math.min(list.reduce(function(a,x){return a+(+x[k]||0)},0),100000)}
+function hasFloors(d){return !!(d&&d.floors&&d.floors.length)}
+function floorView(f){
+  var sh=f.shops||[];
+  if(!sh.length)return{status:+f.status||0,live:+f.live||0,dead:+f.dead||0,missing:+f.missing||0,auto:false};
+  return{status:statusRule(sh.map(function(x){return +x.status||0})),live:sumK(sh,"live"),dead:sumK(sh,"dead"),missing:sumK(sh,"missing"),auto:true};
+}
+function applyDerived(d){
+  if(!hasFloors(d))return d;
+  var vs=d.floors.map(floorView),ents=[];
+  d.floors.forEach(function(f){(f.shops&&f.shops.length?f.shops:[f]).forEach(function(e){ents.push(e)})});
+  var st=ents.map(function(e){return e.startAt}).filter(Boolean);
+  d.status=statusRule(vs.map(function(v){return v.status}));
+  d.live=sumK(vs,"live");d.dead=sumK(vs,"dead");d.missing=sumK(vs,"missing");
+  d.hazard=ents.map(function(e){return(e.hazard||"").trim()}).filter(function(h,i,a){return h&&a.indexOf(h)===i}).join("／").slice(0,200);
+  d.go=ents.every(function(e){return e.go!==false});
+  d.startAt=st.length?Math.min.apply(null,st):null;
+  d.endAt=ents.every(function(e){return e.endAt})?Math.max.apply(null,ents.map(function(e){return e.endAt})):null;
+  return d;
+}
+function floorsProgress(p){
+  if(!hasFloors(p))return"";
+  return p.floors.filter(function(f){return floorView(f).status===2}).length+"/"+p.floors.length;
+}
+function floorsForSend(fl){
+  var one=function(e){return{status:+e.status||0,go:e.go!==false,live:+e.live||0,dead:+e.dead||0,missing:+e.missing||0,
+    hazard:(e.hazard||"").trim(),note:(e.note||"").trim(),startAt:e.startAt||null,endAt:e.endAt||null}};
+  return fl.map(function(f){var o=one(f);o.label=(f.label||"").trim();
+    o.shops=(f.shops||[]).map(function(s){var x=one(s);x.id=s.id;x.name=(s.name||"").trim();return x});return o});
+}
 function pinBody(d){return{lat:d.lat,lng:d.lng,name:d.name,status:d.status,go:d.go,live:d.live,dead:d.dead,missing:d.missing,
-  hazard:d.hazard||"",address:d.address||"",floor:d.floor||"",note:d.note||"",startAt:d.startAt||null,endAt:d.endAt||null}}
+  hazard:d.hazard||"",address:d.address||"",floor:d.floor||"",note:d.note||"",startAt:d.startAt||null,endAt:d.endAt||null,
+  floors:hasFloors(d)?floorsForSend(d.floors):null}}
 function isTmp(id){return typeof id==="string"&&id.indexOf("tmp-")===0}
 function enqueue(d){
   var q=queue(),body=pinBody(d),i;
@@ -538,7 +654,7 @@ function pinSVG(p,detailed){
     '<rect x="'+-q+'" y="'+-q+'" width="'+2*q+'" height="'+2*q+'" fill="var(--panel)" stroke="'+col+'" stroke-width="'+(red?5:4)+'"'+dash+'/>'+
     tx(0,-5,10,(p.team||"").slice(0,3))+'<g transform="translate(0,8)">'+glyph(st,6,col)+'</g>'+
     tx(0,-25,11,(p.hazard||"").slice(0,6))+tx(-23,5,13,"L"+(p.live||0),"end")+tx(23,5,13,"D"+(p.dead||0),"start")+tx(0,36,13,"M"+(p.missing||0))+
-    tx(0,53,12,(p.name||"")+(p.floor?" "+p.floor:""))+'</svg>';
+    tx(0,53,12,(p.name||"")+(p.floor?" "+p.floor:"")+(floorsProgress(p)?" "+floorsProgress(p):""))+'</svg>';
 }
 function pinIcon(p,detailed){
   var red=+p.status===0,sz=detailed?[76,100]:(red?[30,30]:[20,20]),an=detailed?[38,38]:(red?[15,15]:[10,10]);
@@ -630,9 +746,8 @@ function renderTeams(){
   if(showTeams)teamPos.forEach(function(p){
     if(p.id===user.id)return; // 自分の位置は、いつもの現在地マークで表示
     var age=nowS()-p.t,lv=ageLevel(age);
-    var m=L.marker([p.lat,p.lng],{icon:teamIcon(p,age,lv),zIndexOffset:2000});
-    m.on("click",function(){toast(p.team+"　"+fmtAge(age),3000)});
-    teamLayer.addLayer(m);
+    // 各隊の印は押せないようにして、同じ場所のピンを押せるようにする（ピンより奥に描く）
+    teamLayer.addLayer(L.marker([p.lat,p.lng],{icon:teamIcon(p,age,lv),zIndexOffset:-500,interactive:false,keyboard:false}));
   });
   updateNearest();
 }
@@ -763,7 +878,7 @@ function collectForm(){
   draft.name=$("pn").value.trim();draft.floor=$("pf").value.trim();draft.address=$("pa").value.trim();
   draft.hazard=$("ph").value.trim();draft.note=$("pt").value.trim();
   draft.startAt=fromInput($("ps0").value);draft.endAt=fromInput($("ps1").value);
-  $$(".step").forEach(function(st){var i=st.querySelector("input"),v=parseInt(i.value,10);
+  $$("#bldfields .step").forEach(function(st){var i=st.querySelector("input"),v=parseInt(i.value,10);
     draft[st.getAttribute("data-k")]=isNaN(v)||v<0?0:Math.min(v,99999)});
 }
 function lookupAddress(d,force){
@@ -773,20 +888,20 @@ function lookupAddress(d,force){
 }
 /* ---------- 未保存の変更の警告・ピン切り替え ---------- */
 function fieldsOf(d){return{name:d.name||"",floor:d.floor||"",address:d.address||"",hazard:d.hazard||"",note:d.note||"",
-  status:+d.status,go:!!d.go,live:+d.live||0,dead:+d.dead||0,missing:+d.missing||0,startAt:d.startAt||null,endAt:d.endAt||null}}
+  status:+d.status,go:!!d.go,live:+d.live||0,dead:+d.dead||0,missing:+d.missing||0,startAt:d.startAt||null,endAt:d.endAt||null,
+  floors:hasFloors(d)?JSON.stringify(d.floors):null}}
 function isDirty(){
   if(!draft||!$("sheet")||!base)return false;
   collectForm();
   return JSON.stringify(fieldsOf(draft))!==JSON.stringify(base);
 }
-function confirmDiscard(kind,onOk){
+function confirmBox(title,msg,keepKey,okKey,onOk){
   var old=$("cfm");if(old)old.remove();
   var el=document.createElement("div");el.className="modal";el.id="cfm";
-  var close=kind==="close";
-  el.innerHTML='<div class="box" role="alertdialog" aria-modal="true" aria-labelledby="cfmT"><h1 id="cfmT">'+esc(t("unsavedTitle"))+'</h1>'+
-    '<p class="cfm-msg">'+esc(t(close?"unsavedClose":"unsavedMove"))+'</p>'+
-    '<div class="mrow"><button id="cfmKeep" class="solid" type="button">'+esc(t("keepEditing"))+'</button>'+
-    '<button id="cfmOk" class="del" type="button">'+esc(t(close?"discardClose":"discardMove"))+'</button></div></div>';
+  el.innerHTML='<div class="box" role="alertdialog" aria-modal="true" aria-labelledby="cfmT"><h1 id="cfmT">'+esc(t(title))+'</h1>'+
+    '<p class="cfm-msg">'+esc(t(msg))+'</p>'+
+    '<div class="mrow"><button id="cfmKeep" class="solid" type="button">'+esc(t(keepKey))+'</button>'+
+    '<button id="cfmOk" class="del" type="button">'+esc(t(okKey))+'</button></div></div>';
   document.body.appendChild(el);
   var onKey=function(e){if(e.key==="Escape"){e.preventDefault();done()}};
   var done=function(){el.remove();document.removeEventListener("keydown",onKey)};
@@ -795,6 +910,10 @@ function confirmDiscard(kind,onOk){
   $("cfmOk").onclick=function(){done();onOk()};
   el.addEventListener("click",function(e){if(e.target===el)done()});
   $("cfmKeep").focus();
+}
+function confirmDiscard(kind,onOk){
+  var close=kind==="close";
+  confirmBox("unsavedTitle",close?"unsavedClose":"unsavedMove","keepEditing",close?"discardClose":"discardMove",onOk);
 }
 function requestClose(){
   if(!$("sheet"))return;
@@ -828,10 +947,178 @@ function layoutPanels(){
   sh.style.maxHeight=shH+"px";
   lp.style.maxHeight=Math.max(110,H-shH-8-top)+"px";
 }
+/* ---------- 階数・店舗・区画の入力画面 ---------- */
+function newEntry(x){var e={status:0,go:true,live:0,dead:0,missing:0,hazard:"",note:"",startAt:null,endAt:null};for(var k in x)e[k]=x[k];return e}
+function stGlyph(st){return '<svg width="16" height="16" viewBox="-8 -8 16 16" aria-hidden="true">'+glyph(st,7,"var(--st"+st+")")+'</svg>'}
+function entryFor(el){var f=draft.floors[+el.getAttribute("data-f")],s=el.getAttribute("data-s");return s!=null&&s!==""?f.shops[+s]:f}
+function fAttr(f,s){return 'data-f="'+f+'"'+(s==null?'':' data-s="'+s+'"')}
+function segF(k,items,cur,a){return '<div class="seg" '+a+' data-k="'+k+'" role="group">'+items.map(function(x){return '<button type="button" data-v="'+x[0]+'"'+(String(cur)===String(x[0])?' class="on"':'')+'>'+esc(x[1])+'</button>'}).join("")+'</div>'}
+function stpF(k,l,v,a){return '<div class="row"><span>'+esc(l)+'</span><div class="step" '+a+' data-k="'+k+'"><button type="button" data-d="-1" aria-label="'+esc(t("dec"))+'">－</button>'+
+  '<input class="num mono" type="number" inputmode="numeric" min="0" max="99999" step="1" '+a+' data-k="'+k+'" aria-label="'+esc(l)+'" value="'+(+v||0)+'">'+
+  '<button type="button" data-d="1" aria-label="'+esc(t("inc"))+'">+1</button><button type="button" data-d="10" aria-label="'+esc(t("inc10"))+'">+10</button></div></div>'}
+function timeF(k,l,v,a){return '<div class="two"><div><span class="lb">'+esc(l)+'</span><div class="trow"><input type="datetime-local" '+a+' data-k="'+k+'" aria-label="'+esc(l)+'" value="'+esc(toInput(v))+'">'+
+  '<button type="button" data-act="now" '+a+' data-k="'+k+'">'+esc(t("now"))+'</button></div></div></div>'}
+function eFields(e,f,s,withName,noteLabel){
+  var a=fAttr(f,s),h='';
+  if(withName)h+='<span class="lb">'+esc(t("shopName"))+'</span><input '+a+' data-k="name" aria-label="'+esc(t("shopName"))+'" value="'+esc(e.name||"")+'" placeholder="'+esc(t("shopNamePh"))+'">';
+  h+='<span class="lb">'+esc(t("status"))+'</span>'+segF("status",[[0,"□ "+t("st0")],[1,"◪ "+t("st1")],[2,"■ "+t("st2s")]],e.status,a);
+  h+='<span class="lb">'+esc(t("entry"))+'</span>'+segF("go",[[true,t("goYes")],[false,t("goNo")]],e.go!==false,a);
+  h+=stpF("missing",t("missing"),e.missing,a)+stpF("live",t("live"),e.live,a)+stpF("dead",t("dead"),e.dead,a);
+  h+='<span class="lb">'+esc(t("hazard"))+'</span><input '+a+' data-k="hazard" aria-label="'+esc(t("hazard"))+'" value="'+esc(e.hazard||"")+'" placeholder="'+esc(t("hazardPh"))+'">';
+  h+=timeF("startAt",t("startT"),e.startAt,a)+timeF("endAt",t("endT"),e.endAt,a);
+  h+=noteF(e,a,noteLabel||t("note"));
+  return h;
+}
+function noteF(e,a,label){return '<span class="lb">'+esc(label)+'</span><textarea '+a+' data-k="note" rows="2" aria-label="'+esc(label)+'" placeholder="'+esc(t("notePh"))+'">'+esc(e.note||"")+'</textarea>'}
+function cText(v){return(v.missing||v.live||v.dead)?"M"+v.missing+" L"+v.live+" D"+v.dead:""}
+function renderFloors(){
+  var box=$("flbox");if(!box||!draft)return;
+  var fl=draft.floors,on=fl!=null,h='',i,j;
+  h+='<div class="fl-h"><i></i><span>'+esc(t("floorsT"))+'</span></div><p class="fl-hint">'+esc(t("floorsHint"))+'</p>';
+  h+='<div class="seg" role="group" aria-label="'+esc(t("floorsT"))+'"><button type="button" data-act="fmode" data-v="off"'+(on?'':' class="on"')+'>'+esc(t("floorsNone"))+'</button>'+
+     '<button type="button" data-act="fmode" data-v="on"'+(on?' class="on"':'')+'>'+esc(t("floorsInput"))+'</button></div>';
+  if(on&&!fl.length){
+    h+='<div class="fl-dim"><div><span class="lb">'+esc(t("above"))+'</span><div class="trow"><input id="fa" type="number" inputmode="numeric" min="0" max="99" value="1" aria-label="'+esc(t("above"))+'"><span>'+esc(t("floorUnit"))+'</span></div></div>'+
+       '<div><span class="lb">'+esc(t("below"))+'</span><div class="trow"><input id="fb" type="number" inputmode="numeric" min="0" max="20" value="0" aria-label="'+esc(t("below"))+'"><span>'+esc(t("floorUnit"))+'</span></div></div></div>'+
+       '<button type="button" class="solid" id="fmake" data-act="make" style="width:100%;margin-top:14px">'+esc(t("makeTabs",{n:1}))+'</button>';
+  }else if(on){
+    h+='<div class="fl-sum" id="flsum"></div><div class="fl-bar" id="flbar"></div><div class="fl-list">';
+    for(i=0;i<fl.length;i++){
+      var f=fl[i],v=floorView(f),open=!!fo[i],sh=f.shops||[];
+      h+='<button type="button" class="fl-row'+(open?' open':'')+'" data-act="ftab" data-f="'+i+'" aria-expanded="'+open+'"><span class="fl-n">'+esc(f.label)+'</span>'+
+         '<span class="fl-gl" data-f="'+i+'">'+stGlyph(v.status)+'</span><span class="fl-s" data-f="'+i+'">'+esc(t("st"+v.status))+'</span>'+
+         '<span class="fl-c" data-f="'+i+'">'+esc(cText(v))+'</span>'+
+         (sh.length?'<span class="fl-chips">'+sh.map(function(x){return stGlyph(+x.status||0)}).join("")+'</span>':'')+'<span>'+(open?'▴':'▾')+'</span></button>';
+      if(open){
+        h+='<div class="fl-body">';
+        if(!sh.length)h+=eFields(f,i,null,false,t("floorNote"));
+        else{
+          h+='<span class="lb">'+esc(t("status"))+'<span class="autoi">'+esc(t("autoTag"))+'</span></span>'+
+             '<div class="autob" data-f="'+i+'"></div><p class="rules">'+t("autoRule").split("|").map(esc).join("<br>")+'</p>'+
+             '<span class="lb">'+esc(t("totals"))+'</span><div class="tots">'+
+             [["missing","missing"],["live","live"],["dead","dead"]].map(function(x){return '<div><small>'+esc(t(x[1]))+'</small><b data-tot="'+x[0]+'" data-f="'+i+'">0</b></div>'}).join("")+'</div>'+
+             noteF(f,fAttr(i,null),t("floorNote"))+'<p class="rules">'+esc(t("shopOnlyHint"))+'</p>';
+        }
+        h+='<div class="fl-sub"><i></i><span>'+esc(t("shopsT"))+'</span><span class="rules" style="margin:0">'+esc(t("shopsIn"))+'</span></div><div class="fl-list">';
+        for(j=0;j<sh.length;j++){
+          var s=sh[j],sopen=!!so[i+"."+j];
+          h+='<button type="button" class="fl-row sm'+(sopen?' open':'')+'" data-act="stab" data-f="'+i+'" data-s="'+j+'" aria-expanded="'+sopen+'"><span class="fl-s" data-nm="'+i+'.'+j+'">'+esc(s.name||t("unnamed"))+'</span>'+
+             stGlyph(+s.status||0)+'<span>'+esc(t("st"+(+s.status||0)))+'</span><span>'+(sopen?'▴':'▾')+'</span></button>';
+          if(sopen){
+            h+='<div class="sh-body">'+eFields(s,i,j,true)+'<button type="button" class="fl-del" data-act="delshop" data-f="'+i+'" data-s="'+j+'">'+esc(t("shopDel"))+'</button>'+'</div>';
+          }
+        }
+        h+='</div><button type="button" class="fl-add" data-act="addshop" data-f="'+i+'">'+esc(t("addShop"))+'</button>';
+        h+='<button type="button" class="fl-del" data-act="delfloor" data-f="'+i+'">'+esc(t("floorDel"))+'</button>';
+        h+='</div>';
+      }
+    }
+    h+='</div><div class="fl-addrow"><div style="flex:1"><span class="lb">'+esc(t("addFloorOk"))+'</span><input id="fnew" aria-label="'+esc(t("addFloorOk"))+'" placeholder="'+esc(t("floorLabelPh"))+'"></div>'+
+       '<button type="button" data-act="addfloor">'+esc(t("addFloorOk"))+'</button></div>';
+  }
+  box.innerHTML=h;
+  var fx=hasFloors(draft);
+  $("bldfields").classList.toggle("hide",fx);
+  $("ptl").textContent=fx?t("bldNote"):t("note");
+  var q=document.querySelector("#sheet .quick");if(q)q.classList.toggle("hide",fx);
+  refreshDerived();
+}
+function refreshDerived(){
+  var box=$("flbox");if(!box||!hasFloors(draft))return;
+  draft.floors.forEach(function(f,i){
+    var v=floorView(f),q=function(s){return box.querySelector(s+'[data-f="'+i+'"]')};
+    var g=q(".fl-gl"),w=q(".fl-s"),c=q(".fl-c");
+    if(g)g.innerHTML=stGlyph(v.status);if(w)w.textContent=t("st"+v.status);if(c)c.textContent=cText(v);
+    var ab=q(".autob");if(ab)ab.innerHTML=stGlyph(v.status)+'<span>'+esc(t("st"+v.status))+'</span>';
+    ["missing","live","dead"].forEach(function(k){var b=box.querySelector('[data-tot="'+k+'"][data-f="'+i+'"]');if(b)b.textContent=v[k]});
+  });
+  var done=draft.floors.filter(function(f){return floorView(f).status===2}).length;
+  var sm=$("flsum");if(sm)sm.textContent=t("doneOf",{n:done,m:draft.floors.length});
+  var bar=$("flbar");
+  if(bar)bar.innerHTML=draft.floors.slice().reverse().map(function(f){var st=floorView(f).status;return '<span style="background:var(--st'+st+')" title="'+esc(f.label)+'"></span>'}).join("");
+}
+function setFloorsMode(on){
+  if(on){if(draft.floors==null)draft.floors=[];return renderFloors()}
+  if(!hasFloors(draft)){draft.floors=null;return renderFloors()}
+  confirmBox("floorsOffTitle","floorsOffMsg","keepEditing","floorsOffOk",function(){draft.floors=null;fo={};so={};renderFloors()});
+}
+function makeFloors(){
+  var a=Math.min(Math.max(parseInt($("fa").value,10)||0,0),99),b=Math.min(Math.max(parseInt($("fb").value,10)||0,0),20),list=[],i;
+  if(a+b<1)return toast(t("makeNone"));
+  for(i=a;i>=1;i--)list.push(newEntry({label:i+"F",shops:[]}));
+  for(i=1;i<=b;i++)list.push(newEntry({label:"B"+i,shops:[]}));
+  draft.floors=list;fo={};so={};renderFloors();
+}
+function addFloor(){
+  var label=$("fnew").value.trim();if(!label)return;
+  if(draft.floors.some(function(f){return f.label===label}))return toast(t("floorDup"));
+  draft.floors.push(newEntry({label:label,shops:[]}));fo[draft.floors.length-1]=true;renderFloors();
+}
+function addShop(fi){
+  var F=draft.floors[fi],first=!F.shops.length;
+  var s=newEntry({id:"s"+Math.random().toString(36).slice(2,10),name:""});
+  if(first){ // 最初の店舗・区画には、その階にすでに入力した内容を引き継ぐ
+    ["status","go","live","dead","missing","hazard","startAt","endAt"].forEach(function(k){s[k]=F[k]});
+  }
+  F.shops.push(s);fo[fi]=true;so[fi+"."+(F.shops.length-1)]=true;renderFloors();
+  var inp=$("flbox").querySelector('input[data-f="'+fi+'"][data-s="'+(F.shops.length-1)+'"][data-k="name"]');if(inp)inp.focus();
+}
+function firstUnnamedShop(){
+  for(var i=0;i<draft.floors.length;i++){
+    var sh=draft.floors[i].shops||[];
+    for(var j=0;j<sh.length;j++)if(!(sh[j].name||"").trim()){fo[i]=true;so[i+"."+j]=true;renderFloors();return true}
+  }
+  return false;
+}
+function onFlClick(e){
+  var b=e.target.closest("button");if(!b||!$("flbox").contains(b))return;
+  e.stopPropagation(); // 再描画でボタンが消えるので、外側の（編集画面全体の）クリック処理には渡さない
+  var act=b.getAttribute("data-act"),f=b.getAttribute("data-f"),s=b.getAttribute("data-s"),par=b.parentNode;
+  if(act==="fmode")return setFloorsMode(b.getAttribute("data-v")==="on");
+  if(act==="make")return makeFloors();
+  if(act==="addfloor")return addFloor();
+  if(act==="ftab"){fo[f]=!fo[f];return renderFloors()}
+  if(act==="stab"){var key=f+"."+s;so[key]=!so[key];return renderFloors()}
+  if(act==="addshop")return addShop(+f);
+  if(act==="delshop")return confirmBox("delTitle","delShopMsg","keepEditing","delOk",function(){
+    draft.floors[+f].shops.splice(+s,1);Object.keys(so).forEach(function(k){if(k.indexOf(f+".")===0)delete so[k]});renderFloors()});
+  if(act==="delfloor")return confirmBox("delTitle","delFloorMsg","keepEditing","delOk",function(){
+    draft.floors.splice(+f,1);fo={};so={};renderFloors()});
+  if(act==="now"){var en=entryFor(b),k=b.getAttribute("data-k");en[k]=Date.now();var inp=par.querySelector("input");if(inp)inp.value=toInput(en[k]);return}
+  if(b.hasAttribute("data-v")&&par.classList.contains("seg")){
+    var e2=entryFor(par),k2=par.getAttribute("data-k"),v=b.getAttribute("data-v");
+    e2[k2]=k2==="go"?v==="true":+v;
+    if(k2==="status"&&e2.status>=1&&!e2.startAt)e2.startAt=Date.now();
+    if(k2==="status"&&e2.status===2&&!e2.endAt)e2.endAt=Date.now();
+    return renderFloors();
+  }
+  if(b.hasAttribute("data-d")&&par.classList.contains("step")){
+    var e3=entryFor(par),k3=par.getAttribute("data-k");
+    e3[k3]=Math.min(99999,Math.max(0,(+e3[k3]||0)+ +b.getAttribute("data-d")));return renderFloors();
+  }
+}
+function onFlInput(e){
+  var i=e.target;
+  if(i.id==="fa"||i.id==="fb"){
+    var n=(parseInt($("fa").value,10)||0)+(parseInt($("fb").value,10)||0);$("fmake").textContent=t("makeTabs",{n:Math.max(n,0)});return;
+  }
+  var k=i.getAttribute("data-k");if(!k||i.getAttribute("data-f")==null)return;
+  var en=entryFor(i);
+  if(i.classList.contains("num")){var v=parseInt(i.value,10);en[k]=isNaN(v)||v<0?0:Math.min(v,99999);refreshDerived();return}
+  if(i.type==="datetime-local"){en[k]=fromInput(i.value);return}
+  en[k]=i.value;
+  if(k==="name"){var nm=$("flbox").querySelector('[data-nm="'+i.getAttribute("data-f")+'.'+i.getAttribute("data-s")+'"]');if(nm)nm.textContent=i.value.trim()||t("unnamed")}
+}
+function onFlChange(e){
+  var i=e.target;if(!i.classList||!i.classList.contains("num")||i.getAttribute("data-f")==null)return;
+  i.value=entryFor(i)[i.getAttribute("data-k")];
+}
 function openSheet(d,keep){
-  closeSearch();d.missing=d.missing||0;draft=d;closeSheet(true);$("bar").classList.add("hide");render();
+  closeSearch();d.missing=d.missing||0;draft=d;closeSheet(true);$("bar").classList.add("hide");
+  if(!keep){fo={};so={};hadFloors=hasFloors(d)&&typeof d.id==="number"}
+  render();
   var el=document.createElement("div");el.className="sheet";el.id="sheet";
-  var seg=function(k,items,cur){return '<div class="seg" data-k="'+k+'">'+items.map(function(x){return '<button type="button" data-v="'+x[0]+'"'+(String(cur)===String(x[0])?' class="on"':'')+'>'+esc(x[1])+'</button>'}).join("")+'</div>'};
+  var seg=function(k,items,cur,cls){return '<div class="seg'+(cls?' '+cls:'')+'" data-k="'+k+'">'+items.map(function(x){return '<button type="button" data-v="'+x[0]+'"'+(String(cur)===String(x[0])?' class="on"':'')+'>'+esc(x[1])+'</button>'}).join("")+'</div>'};
   var stp=function(k,l){return '<div class="row"><span>'+esc(l)+'</span><div class="step" data-k="'+k+'"><button type="button" data-d="-1" aria-label="'+esc(t("dec"))+'">－</button>'+
     '<input class="num mono" type="number" inputmode="numeric" min="0" max="99999" step="1" aria-label="'+esc(l)+'">'+
     '<button type="button" data-d="1" aria-label="'+esc(t("inc"))+'">+1</button><button type="button" data-d="10" aria-label="'+esc(t("inc10"))+'">+10</button></div></div>'};
@@ -839,13 +1126,21 @@ function openSheet(d,keep){
   var near=isNew?pins.filter(function(p){return distM(p,d)<=DUP_M}).map(function(p){return{p:p,m:Math.round(distM(p,d))}}).sort(function(a,b){return a.m-b.m}).slice(0,3):[];
   var meta=isNew?"":'<div class="meta">'+esc(t("created"))+': '+esc((d.team||"")+" / "+(d.by||""))+
     (d.t?'<br>'+esc(t("updated"))+': '+esc((d.updatedBy||d.by||"")+" · "+fmtTime(d.t)):"")+'</div>';
+  var fx=hasFloors(d),quickOn=!isNew&&!fx,detailOpen=!quickOn||S.get("ss_detail")==="open";
+  var quick=quickOn?'<div class="quick"><div class="qname">'+esc(d.name||t("unnamed"))+(d.floor?" "+esc(d.floor):"")+'</div>'+
+    seg("status",[[0,t("qSt0")],[1,t("qSt1")],[2,t("qSt2")]],d.status,"qseg")+
+    '<button type="button" class="dtgl" id="pdt" aria-expanded="'+detailOpen+'"><span>'+esc(t("detailBtn"))+'</span><span id="pdta">'+(detailOpen?"▴":"▾")+'</span></button></div>':'';
   el.innerHTML='<div class="sh-top"><h2>'+esc(isNew?t("newPin"):t("editPin"))+(d._pending?'<span class="tag">'+esc(t("unsent"))+'</span>':'')+'</h2><button id="pc" type="button">'+esc(t("close"))+'</button><button class="solid" id="ps" type="button">'+esc(t("save"))+'</button></div>'+
    '<div class="co mono" style="margin-top:8px">'+d.lat.toFixed(5)+', '+d.lng.toFixed(5)+'</div>'+meta+
    (near.length?'<div class="warnbox" role="alert">⚠ '+esc(t("dupWarn"))+near.map(function(x){return '<button type="button" data-near="'+esc(x.p.id)+'">'+esc((x.p.name||t("unnamed"))+" — "+t("st"+x.p.status)+" · "+(x.p.team||"")+" · "+x.m+"m")+'</button>'}).join("")+'</div>':'')+
    '<div class="nearteams" id="nearteams"></div>'+
+   quick+
+   '<div id="detail"'+(detailOpen?'':' class="hide"')+'>'+
    '<div class="two"><div><label for="pn">'+esc(t("name"))+'</label><input id="pn" placeholder="'+esc(t("namePh"))+'"></div>'+
    '<div style="flex:0 0 32%"><label for="pf">'+esc(t("floor"))+'</label><input id="pf" placeholder="'+esc(t("floorPh"))+'"></div></div>'+
    '<div class="lrow"><label for="pa">'+esc(t("address"))+'</label><button type="button" class="lbtn" id="pag">'+esc(t("addrGet"))+'</button></div><input id="pa" placeholder="'+esc(t("addrPh"))+'">'+
+   '<div class="fl" id="flbox"></div>'+
+   '<div id="bldfields"'+(fx?' class="hide"':'')+'>'+
    '<label>'+esc(t("status"))+'</label>'+
    seg("status",[[0,"□ "+t("st0")],[1,"◪ "+t("st1")],[2,"■ "+t("st2s")]],d.status)+
    '<label>'+esc(t("entry"))+'</label>'+seg("go",[[true,t("goYes")],[false,t("goNo")]],d.go)+
@@ -853,7 +1148,9 @@ function openSheet(d,keep){
    '<label for="ph">'+esc(t("hazard"))+'</label><input id="ph" placeholder="'+esc(t("hazardPh"))+'">'+
    '<div class="two"><div><label for="ps0">'+esc(t("startT"))+'</label><div class="trow"><input id="ps0" type="datetime-local"><button type="button" data-now="ps0">'+esc(t("now"))+'</button></div></div></div>'+
    '<div class="two"><div><label for="ps1">'+esc(t("endT"))+'</label><div class="trow"><input id="ps1" type="datetime-local"><button type="button" data-now="ps1">'+esc(t("now"))+'</button></div></div></div>'+
-   '<label for="pt">'+esc(t("note"))+'</label><textarea id="pt" rows="3" placeholder="'+esc(t("notePh"))+'"></textarea>'+
+   '</div>'+
+   '<label for="pt" id="ptl">'+esc(fx?t("bldNote"):t("note"))+'</label><textarea id="pt" rows="3" placeholder="'+esc(t("notePh"))+'"></textarea>'+
+   '</div>'+
    '<div class="sec" id="vsec"></div><div class="sec" id="phsec"></div>'+
    (d.id&&(own||isTmp(d.id))?'<div class="acts"><button class="del" id="pd" type="button">'+esc(t("del"))+'</button></div>':'');
   $("stage").appendChild(el);
@@ -861,38 +1158,49 @@ function openSheet(d,keep){
   // 値はinnerHTMLではなくプロパティで入れる（XSS対策）
   $("pn").value=d.name||"";$("pf").value=d.floor||"";$("pa").value=d.address||"";$("ph").value=d.hazard||"";$("pt").value=d.note||"";
   $("ps0").value=toInput(d.startAt);$("ps1").value=toInput(d.endAt);
-  $$(".step").forEach(function(st){st.querySelector("input").value=d[st.getAttribute("data-k")]||0});
+  $$("#bldfields .step").forEach(function(st){st.querySelector("input").value=d[st.getAttribute("data-k")]||0});
+  renderFloors();
   collectForm();if(!keep||!base)base=fieldsOf(draft);   // 編集開始時点の内容を記録（未保存の変更の検出用）
   if(isNew&&!d.address)lookupAddress(d,false);
   $("pag").onclick=function(){lookupAddress(d,true)};
+  var fb=$("flbox");
+  fb.addEventListener("click",onFlClick);fb.addEventListener("input",onFlInput);fb.addEventListener("change",onFlChange);
+  fb.addEventListener("focusin",function(e){var i=e.target;if(i.classList&&i.classList.contains("num"))i.select()});
+  if($("pdt"))$("pdt").onclick=function(){
+    var dt=$("detail"),open=dt.classList.contains("hide");
+    dt.classList.toggle("hide",!open);this.setAttribute("aria-expanded",open);$("pdta").textContent=open?"▴":"▾";S.set("ss_detail",open?"open":"closed");
+  };
   el.addEventListener("click",function(e){
-    var b=e.target.closest("button");if(!b)return;
+    var b=e.target.closest("button");if(!b||b.closest("#flbox"))return;
     if(b.hasAttribute("data-near")){var id=b.getAttribute("data-near");var p=pins.filter(function(x){return String(x.id)===id})[0];
       if(p)openPinEdit(p,true);return}
     if(b.hasAttribute("data-now")){$(b.getAttribute("data-now")).value=toInput(Date.now());return}
     var g=b.parentNode.getAttribute("data-k");
     if(b.hasAttribute("data-v")){var v=b.getAttribute("data-v");draft[g]=g==="go"?v==="true":+v;
-      Array.prototype.forEach.call(b.parentNode.children,function(x){x.classList.toggle("on",x===b)});
+      // かんたん操作と詳しい入力の、同じ項目のボタンをそろえる
+      $$('.quick .seg[data-k="'+g+'"], #bldfields .seg[data-k="'+g+'"]').forEach(function(sg){
+        Array.prototype.forEach.call(sg.children,function(x){x.classList.toggle("on",x.getAttribute("data-v")===v)})});
       // 状況に合わせて捜索開始/終了時刻を自動入力（空欄のときだけ）
       if(g==="status"&&draft.status>=1&&!$("ps0").value)$("ps0").value=toInput(Date.now());
       if(g==="status"&&draft.status===2&&!$("ps1").value)$("ps1").value=toInput(Date.now());
+      if(b.parentNode.classList.contains("qseg"))save({stay:true});   // かんたん操作：押した時点で保存する
     }
     else if(b.hasAttribute("data-d")){draft[g]=Math.min(99999,Math.max(0,(+draft[g]||0)+ +b.getAttribute("data-d")));b.parentNode.querySelector("input").value=draft[g]}
   });
   // 数字は直接入力もできる（入力中は空欄を許可し、確定時に整える）
   el.addEventListener("input",function(e){
-    var i=e.target;if(!i.classList||!i.classList.contains("num"))return;
+    var i=e.target;if(!i.classList||!i.classList.contains("num")||i.closest("#flbox"))return;
     var v=parseInt(i.value,10);draft[i.parentNode.getAttribute("data-k")]=isNaN(v)||v<0?0:Math.min(v,99999);
   });
   el.addEventListener("change",function(e){
-    var i=e.target;if(!i.classList||!i.classList.contains("num"))return;
+    var i=e.target;if(!i.classList||!i.classList.contains("num")||i.closest("#flbox"))return;
     i.value=draft[i.parentNode.getAttribute("data-k")];
   });
-  el.addEventListener("focusin",function(e){var i=e.target;if(i.classList&&i.classList.contains("num"))i.select()});
+  el.addEventListener("focusin",function(e){var i=e.target;if(i.classList&&i.classList.contains("num")&&!i.closest("#flbox"))i.select()});
   layoutPanels();
   if(!keep)revealUnderSheet(d);
   $("pc").onclick=requestClose;
-  $("ps").onclick=save;
+  $("ps").onclick=function(){save()};
   if($("pd"))$("pd").onclick=del;
 }
 function closeSheet(keep){var s=$("sheet");if(s)s.remove();if(vplacing&&!keep)endVPlacing();if(!keep){draft=null;base=null;photoPin=null;if(user){$("bar").classList.remove("hide");render()}}layoutPanels()}
@@ -901,16 +1209,21 @@ function replaceLocal(oldId,saved){
   pins=pins.map(function(p){if(p.id===oldId){found=true;return saved}return p});
   if(!found)pins.push(saved);
 }
-function save(){
+function save(opts){
   collectForm();
   if(!draft.name)return toast(t("nameReq"));
-  var d=draft,body=pinBody(d);
+  if(hasFloors(draft)&&firstUnnamedShop())return toast(t("shopNameReq"));
+  applyDerived(draft);
+  var d=draft,body=pinBody(d),stay=!!(opts&&opts.stay);
   var offline=function(){enqueue(d);var local=JSON.parse(JSON.stringify(d));local._pending=true;local.team=local.team||user.team;local.by=local.by||user.id;
-    replaceLocal(d.id,local);closeSheet();renderNet();toast(t("queued"),3500)};
+    replaceLocal(d.id,local);
+    if(stay){base=fieldsOf(d);render();renderNet();toast(t("queued"),3500)}else{closeSheet();renderNet();toast(t("queued"),3500)}};
   if(isTmp(d.id))return offline();               // まだ送信されていないピンの編集
   var req=d.id?api("PUT","/api/pins/"+d.id,body):api("POST","/api/pins",body);
   req.then(function(saved){
-    replaceLocal(d.id||saved.id,saved);closeSheet();toast(t("saved"));
+    replaceLocal(d.id||saved.id,saved);
+    if(stay){d.t=saved.t;d.updatedBy=saved.updatedBy;base=fieldsOf(d);render();toast(t("saved"))}
+    else{closeSheet();toast(t("saved"))}
   },function(e){
     if(e&&e._net){online=false;return offline()}
     toast(t("saveFail"));
