@@ -18,10 +18,11 @@
  *   PUT    /api/victims/:id             要救助者（V）を更新（ログイン中なら誰でも可）
  *   DELETE /api/victims/:id             要救助者（V）を削除（追加した隊のみ）
  *   GET    /api/pins/:id/photos         写真の一覧（データ本体は含まない）
- *   POST   /api/pins/:id/photos         写真を追加（本文 = 画像そのもの。最大1MB）
+ *   POST   /api/pins/:id/photos         写真を追加（本文 = 画像そのもの。最大1MB。?floor=2F で階の写真にする）
  *   GET    /api/photos/:id              写真の画像
  *   DELETE /api/photos/:id              写真を削除（撮影した隊のみ）
  *   GET    /api/geocode?q=        住所 → 座標（OpenStreetMap Nominatim を中継）
+ *   GET    /api/facilities?tile=14/x/y  学校・工場・発電所・大型商業施設（OpenStreetMap Overpass を中継）
  *   GET    /api/reverse?lat=&lng= 座標 → 住所
  *
  * Python版との違い:
@@ -459,16 +460,20 @@ async function deleteVictim(env, user, id) {
 const PHOTO_MAX_BYTES = 1024 * 1024;
 const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
+// floor: 階のラベル（"2F" など）。建物全体の写真は null
+const rowToPhoto = (r) => ({ id: r.id, pinId: r.pin_id, floor: r.floor || null, size: r.size, team: r.team, by: r.created_by, t: r.t });
+
 async function listPhotos(env, pinId) {
   const { results } = await env.DB.prepare(
-    "SELECT id, pin_id, content_type, size, team, created_by, t FROM photos WHERE pin_id = ? ORDER BY id"
+    "SELECT id, pin_id, floor, content_type, size, team, created_by, t FROM photos WHERE pin_id = ? ORDER BY id"
   )
     .bind(pinId)
     .all();
-  return json(results.map((r) => ({ id: r.id, pinId: r.pin_id, size: r.size, team: r.team, by: r.created_by, t: r.t })));
+  return json(results.map(rowToPhoto));
 }
 
-async function createPhoto(request, env, user, pinId) {
+async function createPhoto(request, env, user, pinId, floorParam) {
+  const floor = typeof floorParam === "string" && floorParam.trim() ? floorParam.trim().slice(0, 30) : null;
   const type = (request.headers.get("Content-Type") || "").split(";")[0].trim().toLowerCase();
   if (!PHOTO_TYPES.includes(type)) return err("invalid_type", 415);
   const declared = Number(request.headers.get("Content-Length") || 0);
@@ -480,12 +485,12 @@ async function createPhoto(request, env, user, pinId) {
   if (!pin) return err("not_found", 404);
   const now = Date.now();
   const row = await env.DB.prepare(
-    `INSERT INTO photos (pin_id, content_type, size, data, team, created_by, t)
-     VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id, pin_id, size, team, created_by, t`
+    `INSERT INTO photos (pin_id, floor, content_type, size, data, team, created_by, t)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, pin_id, floor, size, team, created_by, t`
   )
-    .bind(pinId, type, buf.byteLength, buf, user.team, user.id, now)
+    .bind(pinId, floor, type, buf.byteLength, buf, user.team, user.id, now)
     .first();
-  return json({ id: row.id, pinId: row.pin_id, size: row.size, team: row.team, by: row.created_by, t: row.t });
+  return json(rowToPhoto(row));
 }
 
 async function getPhoto(env, id) {
@@ -503,6 +508,84 @@ async function deletePhoto(env, user, id) {
   if (p.team !== user.team) return err("forbidden", 403);
   await env.DB.prepare("DELETE FROM photos WHERE id = ?").bind(id).run();
   return json({ ok: true });
+}
+
+// ---------- 事前確認用の施設（学校・工場・発電所・大型商業施設） ----------
+// OpenStreetMap のデータを Overpass API で取得。地図のタイル（ズーム14、約2.4km四方）単位で問い合わせ、7日間キャッシュする。
+// 利用規約: https://wiki.openstreetmap.org/wiki/Overpass_API#Public_Overpass_API_instances （常識的な回数で・結果はキャッシュ）
+const OVERPASS = "https://overpass-api.de/api/interpreter";
+const FAC_ZOOM = 14;
+const FAC_MAX = 400; // 1タイルあたりの上限
+
+function tileBBox(z, x, y) {
+  const n = 2 ** z;
+  const lon = (i) => (i / n) * 360 - 180;
+  const lat = (j) => (Math.atan(Math.sinh(Math.PI * (1 - (2 * j) / n))) * 180) / Math.PI;
+  return { s: lat(y + 1), w: lon(x), n: lat(y), e: lon(x + 1) };
+}
+
+function facilityKind(tg) {
+  if (/^(school|kindergarten|university|college)$/.test(tg.amenity || "")) return "school";
+  if (tg.power === "plant" || tg.power === "substation") return "power";
+  if (/^(mall|department_store)$/.test(tg.shop || "") || tg.building === "retail") return "mall";
+  if (tg.man_made === "works" || tg.landuse === "industrial" || /^(industrial|factory)$/.test(tg.building || "")) return "factory";
+  return null;
+}
+
+async function facilities(url, env, ctx) {
+  const m = (url.searchParams.get("tile") || "").match(/^(\d+)\/(\d+)\/(\d+)$/);
+  if (!m || Number(m[1]) !== FAC_ZOOM) return err("invalid", 400);
+  const x = Number(m[2]), y = Number(m[3]), n = 2 ** FAC_ZOOM;
+  if (x >= n || y >= n) return err("invalid", 400);
+  const b = tileBBox(FAC_ZOOM, x, y), bb = `${b.s.toFixed(6)},${b.w.toFixed(6)},${b.n.toFixed(6)},${b.e.toFixed(6)}`;
+  // 名前のない小さな工場の建物や変電設備は数が多すぎるので、名前があるものだけにする
+  const q = `[out:json][timeout:25];(
+nwr["amenity"~"^(school|kindergarten|university|college)$"](${bb});
+nwr["power"="plant"](${bb});
+nwr["power"="substation"]["name"](${bb});
+nwr["shop"~"^(mall|department_store)$"](${bb});
+nwr["building"="retail"]["name"](${bb});
+nwr["man_made"="works"](${bb});
+nwr["landuse"="industrial"]["name"](${bb});
+nwr["building"~"^(industrial|factory)$"]["name"](${bb});
+);out center tags ${FAC_MAX};`;
+
+  const cacheKey = new Request(`https://facilities.cache/v1/${FAC_ZOOM}/${x}/${y}`);
+  const cache = caches.default;
+  const hit = await cache.match(cacheKey);
+  if (hit) return new Response(hit.body, { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
+
+  const upstream = await fetch(env.OVERPASS_URL || OVERPASS, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA },
+    body: "data=" + encodeURIComponent(q),
+  });
+  if (!upstream.ok) return err("facilities_failed", 502);
+  const data = await upstream.json();
+  const seen = new Set();
+  const list = [];
+  for (const el of data.elements || []) {
+    const tg = el.tags || {};
+    const kind = facilityKind(tg);
+    const lat = el.lat ?? el.center?.lat, lng = el.lon ?? el.center?.lon;
+    if (!kind || lat == null || lng == null) continue;
+    const key = el.type + el.id;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    list.push({
+      id: key,
+      kind,
+      sub: tg.amenity || tg.power || tg.shop || tg.man_made || tg.building || tg.landuse || "",
+      name: (tg["name:ja"] || tg.name || "").slice(0, 80),
+      nameEn: (tg["name:en"] || "").slice(0, 80),
+      lat: Math.round(lat * 1e6) / 1e6,
+      lng: Math.round(lng * 1e6) / 1e6,
+    });
+  }
+  const body = JSON.stringify({ tile: `${FAC_ZOOM}/${x}/${y}`, items: list });
+  const res = new Response(body, { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=604800" } });
+  ctx.waitUntil(cache.put(cacheKey, res.clone()));
+  return new Response(body, { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
 }
 
 // ---------- 住所検索（OpenStreetMap Nominatim） ----------
@@ -603,6 +686,11 @@ export default {
       if (path === "/api/logout" && method === "POST") return await logout(request, env);
 
       const user = await getUser(request, env);
+      if (path === "/api/facilities") {
+        if (!user) return err("unauthorized", 401);
+        if (method !== "GET") return err("method_not_allowed", 405);
+        return await facilities(url, env, ctx);
+      }
       if (path === "/api/geocode" || path === "/api/reverse") {
         if (!user) return err("unauthorized", 401); // 外部からの乱用防止のためログイン必須
         if (method !== "GET") return err("method_not_allowed", 405);
@@ -643,7 +731,7 @@ export default {
           return err("method_not_allowed", 405);
         }
         if (method === "GET") return await listPhotos(env, pinId);
-        if (method === "POST") return await createPhoto(request, env, user, pinId);
+        if (method === "POST") return await createPhoto(request, env, user, pinId, url.searchParams.get("floor"));
         return err("method_not_allowed", 405);
       }
       r = path.match(/^\/api\/(victims|photos)\/(\d+)$/);
