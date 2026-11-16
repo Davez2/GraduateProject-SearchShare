@@ -7,8 +7,9 @@
  *   POST   /api/logout     ログアウト（トークン無効化）
  *   GET    /api/pins       ピン一覧
  *   POST   /api/pins       ピン追加
- *   PUT    /api/pins/:id   ピン更新（ログイン中なら誰でも可。作成した隊・作成者は変更不可）
- *   DELETE /api/pins/:id   ピン削除（ピンを作成した隊のメンバーのみ）
+ *   GET    /api/me         自分のID・隊名・種類（member=隊員 / hq=本部）
+ *   PUT    /api/pins/:id   ピン更新（ログイン中なら誰でも可。作成した隊・作成者は変更不可。階・店舗・区画の追加・削除も可）
+ *   DELETE /api/pins/:id   ピン削除（ピンを作成した隊のメンバーのみ。現場の隊員が削除できる）
  *   POST   /api/position   自分の現在地を送る（各隊の位置共有。最新の1件だけ保存）
  *   DELETE /api/position   自分の現在地を消す（位置共有をやめるとき）
  *   GET    /api/positions  各隊の現在地と、最終更新時刻（サーバー時刻）の一覧
@@ -34,6 +35,9 @@ const ID_RE = /^[A-Za-z0-9_-]{3,20}$/;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30日
 const PBKDF2_ITERATIONS = 100000; // Workersで使える上限
 const MAX_BODY_BYTES = 16 * 1024;
+const MAX_PIN_BODY_BYTES = 256 * 1024; // 階・店舗ごとの入力を含むピン用
+const MAX_FLOORS = 120;
+const MAX_SHOPS = 100;
 
 // ---------- 共通 ----------
 const json = (data, status = 200) =>
@@ -64,9 +68,9 @@ function safeEqual(a, b) {
   return diff === 0;
 }
 
-async function readBody(request) {
+async function readBody(request, max = MAX_BODY_BYTES) {
   const text = await request.text();
-  if (text.length > MAX_BODY_BYTES) return null;
+  if (text.length > max) return null;
   try {
     const body = JSON.parse(text || "{}");
     return body && typeof body === "object" && !Array.isArray(body) ? body : {};
@@ -84,7 +88,7 @@ async function createSession(env, user) {
     // ついでに期限切れトークンを掃除
     env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(now),
   ]);
-  return { token, id: user.id, team: user.team };
+  return { token, id: user.id, team: user.team, role: user.role || "member" };
 }
 
 async function getUser(request, env) {
@@ -92,7 +96,7 @@ async function getUser(request, env) {
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
   if (!token) return null;
   return env.DB.prepare(
-    "SELECT u.id, u.team FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ? AND s.expires_at > ?"
+    "SELECT u.id, u.team, u.role FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ? AND s.expires_at > ?"
   )
     .bind(token, Date.now())
     .first();
@@ -109,17 +113,26 @@ async function register(request, env) {
   if (password.length < 6) return err("weak_password", 400);
   if (team.length > 30 || password.length > 200) return err("invalid", 400);
 
+  // 本部として登録するには、サーバーに設定した本部用の合言葉（HQ_CODE）が必要
+  let role = "member";
+  if (body.role === "hq") {
+    const code = typeof body.hqCode === "string" ? body.hqCode : "";
+    if (!env.HQ_CODE) return err("hq_disabled", 403);
+    if (!safeEqual(code, String(env.HQ_CODE))) return err("bad_hq_code", 403);
+    role = "hq";
+  }
+
   const salt = randomHex(16);
   const hash = await hashPassword(password, salt);
   try {
-    await env.DB.prepare("INSERT INTO users (id, team, salt, hash, created_at) VALUES (?, ?, ?, ?, ?)")
-      .bind(id, team, salt, hash, Date.now())
+    await env.DB.prepare("INSERT INTO users (id, team, salt, hash, created_at, role) VALUES (?, ?, ?, ?, ?, ?)")
+      .bind(id, team, salt, hash, Date.now(), role)
       .run();
   } catch (e) {
     if (String(e).includes("UNIQUE")) return err("id_taken", 409);
     throw e;
   }
-  return json(await createSession(env, { id, team }));
+  return json(await createSession(env, { id, team, role }));
 }
 
 async function login(request, env) {
@@ -127,7 +140,7 @@ async function login(request, env) {
   if (!body) return err("too_large", 413);
   const id = typeof body.id === "string" ? body.id : "";
   const password = typeof body.password === "string" ? body.password : "";
-  const user = id ? await env.DB.prepare("SELECT id, team, salt, hash FROM users WHERE id = ?").bind(id).first() : null;
+  const user = id ? await env.DB.prepare("SELECT id, team, salt, hash, role FROM users WHERE id = ?").bind(id).first() : null;
   if (!user || !safeEqual(await hashPassword(password, user.salt), user.hash)) return err("invalid_credentials", 401);
   return json(await createSession(env, user));
 }
@@ -140,7 +153,7 @@ async function logout(request, env) {
 
 // ---------- ピン ----------
 const PIN_COLS =
-  "id, lat, lng, name, status, go, live, dead, missing, hazard, address, floor, note, start_at, end_at, team, created_by, updated_by, t";
+  "id, lat, lng, name, status, go, live, dead, missing, hazard, address, floor, note, start_at, end_at, floors, team, created_by, updated_by, t";
 
 function rowToPin(r) {
   return {
@@ -159,10 +172,115 @@ function rowToPin(r) {
     note: r.note,
     startAt: r.start_at,
     endAt: r.end_at,
+    floors: parseFloors(r.floors),
     team: r.team,
     by: r.created_by,
     updatedBy: r.updated_by,
     t: r.t,
+  };
+}
+
+// ---------- 階・店舗・区画 ----------
+const COUNT = (v) => Math.min(Math.max(Math.floor(Number(v) || 0), 0), 100000);
+const STR = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+const TIME = (v) => {
+  const n = Number(v);
+  return v != null && v !== "" && Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
+};
+
+function parseFloors(s) {
+  if (!s) return null;
+  try {
+    const a = JSON.parse(s);
+    return Array.isArray(a) && a.length ? a : null;
+  } catch {
+    return null;
+  }
+}
+
+function cleanEntry(raw, isShop) {
+  if (!raw || typeof raw !== "object") return null;
+  const e = {
+    status: [0, 1, 2].includes(Number(raw.status)) ? Number(raw.status) : 0,
+    go: raw.go === false ? false : true,
+    live: COUNT(raw.live),
+    dead: COUNT(raw.dead),
+    missing: COUNT(raw.missing),
+    hazard: STR(raw.hazard, 200),
+    note: STR(raw.note, 1000),
+    startAt: TIME(raw.startAt),
+    endAt: TIME(raw.endAt),
+  };
+  if (isShop) {
+    e.id = typeof raw.id === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(raw.id) ? raw.id : "s" + randomHex(5);
+    e.name = STR(raw.name, 100);
+  }
+  return e;
+}
+
+// 階の配列を検証して整える。階数なしなら null、不正なら false
+function cleanFloors(raw) {
+  if (raw == null) return null;
+  if (!Array.isArray(raw)) return false;
+  if (raw.length === 0) return null;
+  if (raw.length > MAX_FLOORS) return false;
+  const labels = new Set();
+  const floors = [];
+  for (const rf of raw) {
+    const f = cleanEntry(rf, false);
+    if (!f) return false;
+    f.label = STR(rf.label, 20);
+    if (!f.label || labels.has(f.label)) return false;
+    labels.add(f.label);
+    const rs = Array.isArray(rf.shops) ? rf.shops : [];
+    if (rs.length > MAX_SHOPS) return false;
+    const ids = new Set();
+    f.shops = [];
+    for (const r of rs) {
+      const sh = cleanEntry(r, true);
+      if (!sh) return false;
+      if (ids.has(sh.id)) sh.id = "s" + randomHex(5);
+      ids.add(sh.id);
+      f.shops.push(sh);
+    }
+    floors.push(f);
+  }
+  return floors;
+}
+
+// 状況の決め方：捜索中が1つでもあれば捜索中。全部が未捜索のときだけ未捜索、全部が捜索済みのときだけ捜索済み。
+// 未捜索と捜索済みが混ざっているときは捜索中（フロント側の同名の関数と同じ決め方）
+function statusRule(list) {
+  if (!list.length) return null;
+  if (list.some((s) => s === 1)) return 1;
+  if (list.every((s) => s === 0)) return 0;
+  if (list.every((s) => s === 2)) return 2;
+  return 1;
+}
+const sumBy = (list, k) => Math.min(list.reduce((a, x) => a + x[k], 0), 100000);
+
+// 店舗・区画がある階は、状況と人数を店舗・区画から決める。建物全体の値は階から決める
+function deriveFromFloors(floors) {
+  floors.forEach((f) => {
+    if (f.shops.length) {
+      f.status = statusRule(f.shops.map((x) => x.status));
+      f.live = sumBy(f.shops, "live");
+      f.dead = sumBy(f.shops, "dead");
+      f.missing = sumBy(f.shops, "missing");
+    }
+  });
+  const entries = [];
+  floors.forEach((f) => (f.shops.length ? entries.push(...f.shops) : entries.push(f)));
+  const starts = entries.map((e) => e.startAt).filter(Boolean);
+  return {
+    status: statusRule(floors.map((f) => f.status)),
+    live: sumBy(floors, "live"),
+    dead: sumBy(floors, "dead"),
+    missing: sumBy(floors, "missing"),
+    hazard: [...new Set(entries.map((e) => e.hazard).filter(Boolean))].join("／").slice(0, 200),
+    go: entries.every((e) => e.go !== false),
+    start_at: starts.length ? Math.min(...starts) : null,
+    end_at: entries.every((e) => e.endAt) ? Math.max(...entries.map((e) => e.endAt)) : null,
   };
 }
 
@@ -182,7 +300,7 @@ function cleanPin(b) {
     const n = Number(v);
     return v != null && v !== "" && Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
   };
-  return {
+  const pin = {
     lat,
     lng,
     name,
@@ -197,7 +315,24 @@ function cleanPin(b) {
     note: str(b.note, 1000),
     start_at: time(b.startAt),
     end_at: time(b.endAt),
+    floors: null,
   };
+  const floors = cleanFloors(b.floors);
+  if (floors === false) return null;
+  if (floors) {
+    // 階・店舗・区画がある場合、建物全体の状況・人数・危険情報・時刻は、そこから自動で決める
+    const d = deriveFromFloors(floors);
+    pin.status = d.status;
+    pin.live = d.live;
+    pin.dead = d.dead;
+    pin.missing = d.missing;
+    pin.hazard = d.hazard;
+    pin.go = d.go ? 1 : 0;
+    pin.start_at = d.start_at;
+    pin.end_at = d.end_at;
+    pin.floors = JSON.stringify(floors);
+  }
+  return pin;
 }
 
 async function listPins(env) {
@@ -206,23 +341,23 @@ async function listPins(env) {
 }
 
 async function createPin(request, env, user) {
-  const body = await readBody(request);
+  const body = await readBody(request, MAX_PIN_BODY_BYTES);
   if (!body) return err("too_large", 413);
   const p = cleanPin(body);
   if (!p) return err("invalid", 400);
   const row = await env.DB.prepare(
     `INSERT INTO pins (lat, lng, name, status, go, live, dead, missing, hazard, address, floor, note, start_at, end_at,
-                       team, created_by, updated_by, t)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING ${PIN_COLS}`
+                       floors, team, created_by, updated_by, t)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING ${PIN_COLS}`
   )
     .bind(p.lat, p.lng, p.name, p.status, p.go, p.live, p.dead, p.missing, p.hazard, p.address, p.floor, p.note,
-          p.start_at, p.end_at, user.team, user.id, user.id, Date.now())
+          p.start_at, p.end_at, p.floors, user.team, user.id, user.id, Date.now())
     .first();
   return json(rowToPin(row));
 }
 
 async function updatePin(request, env, user, id) {
-  const body = await readBody(request);
+  const body = await readBody(request, MAX_PIN_BODY_BYTES);
   if (!body) return err("too_large", 413);
   const p = cleanPin(body);
   if (!p) return err("invalid", 400);
@@ -230,11 +365,11 @@ async function updatePin(request, env, user, id) {
   // ただし team / created_by(作成した隊・作成者) は変更されない。
   const row = await env.DB.prepare(
     `UPDATE pins SET lat=?, lng=?, name=?, status=?, go=?, live=?, dead=?, missing=?, hazard=?,
-                     address=?, floor=?, note=?, start_at=?, end_at=?, updated_by=?, t=?
+                     address=?, floor=?, note=?, start_at=?, end_at=?, floors=?, updated_by=?, t=?
      WHERE id=? RETURNING ${PIN_COLS}`
   )
     .bind(p.lat, p.lng, p.name, p.status, p.go, p.live, p.dead, p.missing, p.hazard,
-          p.address, p.floor, p.note, p.start_at, p.end_at, user.id, Date.now(), id)
+          p.address, p.floor, p.note, p.start_at, p.end_at, p.floors, user.id, Date.now(), id)
     .first();
   return row ? json(rowToPin(row)) : err("not_found", 404);
 }
@@ -243,6 +378,7 @@ async function deletePin(env, user, id) {
   const pin = await env.DB.prepare("SELECT team FROM pins WHERE id = ?").bind(id).first();
   if (!pin) return json({ ok: true }); // 既に無い
   if (pin.team !== user.team) return err("forbidden", 403); // 他の隊のピンは削除不可
+  // ピンと一緒に、その建物の要救助者（V）と写真も消す
   await env.DB.batch([
     env.DB.prepare("DELETE FROM victims WHERE pin_id = ?").bind(id),
     env.DB.prepare("DELETE FROM photos WHERE pin_id = ?").bind(id),
@@ -471,6 +607,10 @@ export default {
         if (!user) return err("unauthorized", 401); // 外部からの乱用防止のためログイン必須
         if (method !== "GET") return err("method_not_allowed", 405);
         return path === "/api/geocode" ? await geocode(url, env, ctx) : await reverse(url, env, ctx);
+      }
+      if (path === "/api/me" && method === "GET") {
+        if (!user) return err("unauthorized", 401);
+        return json({ id: user.id, team: user.team, role: user.role || "member" });
       }
       if (path === "/api/pins") {
         if (!user) return err("unauthorized", 401);
