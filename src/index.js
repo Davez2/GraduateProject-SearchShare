@@ -8,19 +8,27 @@
  *   GET    /api/pins       ピン一覧
  *   POST   /api/pins       ピン追加
  *   GET    /api/me         自分のID・隊名・種類（member=隊員 / hq=本部）
+ *   GET    /api/teams              【本部のみ】隊・招待コード・隊員の一覧
+ *   POST   /api/teams              【本部のみ】隊を作成（招待コードを発行）
+ *   PUT    /api/teams/:id          【本部のみ】隊の停止・再開 {active:true/false}
+ *   POST   /api/teams/:id/code     【本部のみ】招待コードを再発行（古いコードは使えなくなる）
+ *   DELETE /api/users/:id          【本部のみ】隊員アカウントを削除（関係のない人が登録した場合など）
+ *
+ * 登録：隊員は本部が発行した「招待コード」でのみ登録できる（隊名はコードから決まる）。本部は合言葉（HQ_CODE）で登録。
+ * 本部の権限：どの隊のピン・要救助者（V）・写真も削除できる。隊の作成・停止、招待コードの再発行、隊員の削除ができる。
  *   PUT    /api/pins/:id   ピン更新（ログイン中なら誰でも可。作成した隊・作成者は変更不可。階・店舗・区画の追加・削除も可）
- *   DELETE /api/pins/:id   ピン削除（ピンを作成した隊のメンバーのみ。現場の隊員が削除できる）
+ *   DELETE /api/pins/:id   ピン削除（ピンを作成した隊のメンバーと本部）
  *   POST   /api/position   自分の現在地を送る（各隊の位置共有。最新の1件だけ保存）
  *   DELETE /api/position   自分の現在地を消す（位置共有をやめるとき）
  *   GET    /api/positions  各隊の現在地と、最終更新時刻（サーバー時刻）の一覧
  *   GET    /api/victims                 要救助者（V）の一覧
  *   POST   /api/pins/:id/victims        要救助者（V）を追加
  *   PUT    /api/victims/:id             要救助者（V）を更新（ログイン中なら誰でも可）
- *   DELETE /api/victims/:id             要救助者（V）を削除（追加した隊のみ）
+ *   DELETE /api/victims/:id             要救助者（V）を削除（追加した隊と本部）
  *   GET    /api/pins/:id/photos         写真の一覧（データ本体は含まない）
  *   POST   /api/pins/:id/photos         写真を追加（本文 = 画像そのもの。最大1MB。?floor=2F で階の写真にする）
  *   GET    /api/photos/:id              写真の画像
- *   DELETE /api/photos/:id              写真を削除（撮影した隊のみ）
+ *   DELETE /api/photos/:id              写真を削除（撮影した隊と本部）
  *   GET    /api/geocode?q=        住所 → 座標（OpenStreetMap Nominatim を中継）
  *   GET    /api/facilities?tile=14/x/y  学校・工場・発電所・大型商業施設（OpenStreetMap Overpass を中継）
  *   GET    /api/reverse?lat=&lng= 座標 → 住所
@@ -103,13 +111,23 @@ async function getUser(request, env) {
     .first();
 }
 
+// 招待コード：紛らわしい文字（0/O、1/I）を除いた英大文字と数字8文字
+const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+function newInviteCode() {
+  const r = crypto.getRandomValues(new Uint8Array(8));
+  return [...r].map((b) => CODE_CHARS[b % CODE_CHARS.length]).join("");
+}
+// 入力のゆれを吸収（小文字・ハイフン・空白）
+const normCode = (c) => (typeof c === "string" ? c.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 16) : "");
+const isHQ = (user) => !!user && user.role === "hq";
+
 async function register(request, env) {
   const body = await readBody(request);
   if (!body) return err("too_large", 413);
   const id = typeof body.id === "string" ? body.id : "";
   const password = typeof body.password === "string" ? body.password : "";
-  const team = typeof body.team === "string" ? body.team.trim() : "";
-  if (!id || !password || !team) return err("missing", 400);
+  let team = typeof body.team === "string" ? body.team.trim() : "";
+  if (!id || !password) return err("missing", 400);
   if (!ID_RE.test(id)) return err("invalid_id", 400);
   if (password.length < 6) return err("weak_password", 400);
   if (team.length > 30 || password.length > 200) return err("invalid", 400);
@@ -121,6 +139,14 @@ async function register(request, env) {
     if (!env.HQ_CODE) return err("hq_disabled", 403);
     if (!safeEqual(code, String(env.HQ_CODE))) return err("bad_hq_code", 403);
     role = "hq";
+    if (!team) team = "本部";
+  } else {
+    // 隊員：招待コードから隊を決める（停止中の隊のコードは使えない）
+    const code = normCode(body.code);
+    if (!code) return err("invite_required", 400);
+    const row = await env.DB.prepare("SELECT name FROM teams WHERE code = ? AND active = 1").bind(code).first();
+    if (!row) return err("bad_invite", 403);
+    team = row.name;
   }
 
   const salt = randomHex(16);
@@ -378,12 +404,79 @@ async function updatePin(request, env, user, id) {
 async function deletePin(env, user, id) {
   const pin = await env.DB.prepare("SELECT team FROM pins WHERE id = ?").bind(id).first();
   if (!pin) return json({ ok: true }); // 既に無い
-  if (pin.team !== user.team) return err("forbidden", 403); // 他の隊のピンは削除不可
+  if (pin.team !== user.team && !isHQ(user)) return err("forbidden", 403); // 他の隊のピンは削除不可（本部は可）
   // ピンと一緒に、その建物の要救助者（V）と写真も消す
   await env.DB.batch([
     env.DB.prepare("DELETE FROM victims WHERE pin_id = ?").bind(id),
     env.DB.prepare("DELETE FROM photos WHERE pin_id = ?").bind(id),
     env.DB.prepare("DELETE FROM pins WHERE id = ?").bind(id),
+  ]);
+  return json({ ok: true });
+}
+
+// ---------- 隊の管理（本部のみ） ----------
+async function listTeams(env) {
+  const teams = (await env.DB.prepare("SELECT id, name, code, active, t FROM teams ORDER BY name").all()).results;
+  const users = (await env.DB.prepare("SELECT id, team, role, created_at FROM users ORDER BY created_at").all()).results;
+  const byTeam = {};
+  for (const u of users) if (u.role !== "hq") (byTeam[u.team] = byTeam[u.team] || []).push({ id: u.id, t: u.created_at });
+  return json({
+    teams: teams.map((tm) => ({ id: tm.id, name: tm.name, code: tm.code, active: tm.active === 1, t: tm.t, members: byTeam[tm.name] || [] })),
+    hq: users.filter((u) => u.role === "hq").map((u) => ({ id: u.id, team: u.team, t: u.created_at })),
+  });
+}
+
+async function createTeam(request, env, user) {
+  const body = await readBody(request);
+  if (!body) return err("too_large", 413);
+  const name = typeof body.name === "string" ? body.name.trim().slice(0, 30) : "";
+  if (!name) return err("missing", 400);
+  for (let i = 0; i < 5; i++) {
+    try {
+      const row = await env.DB.prepare(
+        "INSERT INTO teams (name, code, active, created_by, t) VALUES (?, ?, 1, ?, ?) RETURNING id, name, code, active, t"
+      )
+        .bind(name, newInviteCode(), user.id, Date.now())
+        .first();
+      return json({ id: row.id, name: row.name, code: row.code, active: true, t: row.t, members: [] });
+    } catch (e) {
+      const m = String(e);
+      if (m.includes("teams.name")) return err("team_exists", 409);
+      if (!m.includes("UNIQUE")) throw e; // コードがたまたま重なったときは作り直す
+    }
+  }
+  return err("server_error", 500);
+}
+
+async function setTeamActive(request, env, id) {
+  const body = await readBody(request);
+  if (!body || typeof body.active !== "boolean") return err("invalid", 400);
+  const row = await env.DB.prepare("UPDATE teams SET active = ? WHERE id = ? RETURNING id").bind(body.active ? 1 : 0, id).first();
+  return row ? json({ ok: true }) : err("not_found", 404);
+}
+
+async function regenTeamCode(env, id) {
+  for (let i = 0; i < 5; i++) {
+    try {
+      const row = await env.DB.prepare("UPDATE teams SET code = ? WHERE id = ? RETURNING code").bind(newInviteCode(), id).first();
+      return row ? json({ code: row.code }) : err("not_found", 404);
+    } catch (e) {
+      if (!String(e).includes("UNIQUE")) throw e;
+    }
+  }
+  return err("server_error", 500);
+}
+
+async function removeUser(env, user, uid) {
+  if (uid === user.id) return err("forbidden", 403); // 自分は消せない
+  const u = await env.DB.prepare("SELECT role FROM users WHERE id = ?").bind(uid).first();
+  if (!u) return json({ ok: true });
+  if (u.role === "hq") return err("forbidden", 403); // 本部アカウントはここでは消せない
+  // ピン・V・写真などの記録は残す（誰が作ったかの記録として）。ログインと位置だけ消す
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(uid),
+    env.DB.prepare("DELETE FROM positions WHERE user_id = ?").bind(uid),
+    env.DB.prepare("DELETE FROM users WHERE id = ?").bind(uid),
   ]);
   return json({ ok: true });
 }
@@ -450,7 +543,7 @@ async function updateVictim(request, env, user, id) {
 async function deleteVictim(env, user, id) {
   const v = await env.DB.prepare("SELECT team FROM victims WHERE id = ?").bind(id).first();
   if (!v) return json({ ok: true });
-  if (v.team !== user.team) return err("forbidden", 403);
+  if (v.team !== user.team && !isHQ(user)) return err("forbidden", 403);
   await env.DB.prepare("DELETE FROM victims WHERE id = ?").bind(id).run();
   return json({ ok: true });
 }
@@ -505,7 +598,7 @@ async function getPhoto(env, id) {
 async function deletePhoto(env, user, id) {
   const p = await env.DB.prepare("SELECT team FROM photos WHERE id = ?").bind(id).first();
   if (!p) return json({ ok: true });
-  if (p.team !== user.team) return err("forbidden", 403);
+  if (p.team !== user.team && !isHQ(user)) return err("forbidden", 403);
   await env.DB.prepare("DELETE FROM photos WHERE id = ?").bind(id).run();
   return json({ ok: true });
 }
@@ -699,6 +792,22 @@ export default {
       if (path === "/api/me" && method === "GET") {
         if (!user) return err("unauthorized", 401);
         return json({ id: user.id, team: user.team, role: user.role || "member" });
+      }
+      if (path === "/api/teams" || path.startsWith("/api/teams/") || path.startsWith("/api/users/")) {
+        if (!user) return err("unauthorized", 401);
+        if (!isHQ(user)) return err("forbidden", 403);
+        if (path === "/api/teams") {
+          if (method === "GET") return await listTeams(env);
+          if (method === "POST") return await createTeam(request, env, user);
+          return err("method_not_allowed", 405);
+        }
+        let tm = path.match(/^\/api\/teams\/(\d+)$/);
+        if (tm && method === "PUT") return await setTeamActive(request, env, Number(tm[1]));
+        tm = path.match(/^\/api\/teams\/(\d+)\/code$/);
+        if (tm && method === "POST") return await regenTeamCode(env, Number(tm[1]));
+        tm = path.match(/^\/api\/users\/([A-Za-z0-9_-]{1,20})$/);
+        if (tm && method === "DELETE") return await removeUser(env, user, tm[1]);
+        return err("not_found", 404);
       }
       if (path === "/api/pins") {
         if (!user) return err("unauthorized", 401);
