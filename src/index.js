@@ -32,6 +32,7 @@
  *   GET    /api/geocode?q=        住所 → 座標（OpenStreetMap Nominatim を中継）
  *   GET    /api/facilities?tile=14/x/y  学校・工場・発電所・大型商業施設（OpenStreetMap Overpass を中継）
  *   GET    /api/reverse?lat=&lng= 座標 → 住所
+ *   GET    /api/route?from=lat,lng&to=lat,lng  徒歩の道順（FOSSGIS の OSRM サーバーを中継。v2.10〜）
  *
  * Python版との違い:
  *   - データはファイルではなく D1(Cloudflareのデータベース) に保存 → 再デプロイしても消えない
@@ -726,6 +727,75 @@ async function reverse(url, env, ctx) {
   return json({ label: data.display_name || "" });
 }
 
+// ---------- 徒歩の道順（FOSSGIS の OSRM サーバーを中継。v2.10〜） ----------
+// 利用規約: https://routing.openstreetmap.de/about.html
+//   - 1秒に1回まで・大量に使わない / アプリを識別できる User-Agent / 出典を表示する（画面の地図の右下に表示）
+//   - 画面側は「ナビ開始時」と「道から外れたとき（20秒に1回まで）」だけ問い合わせる。同じ場所からの道順は1日キャッシュ
+// 注意：道路のデータは平常時のもの。がれき・通行止め・倒壊は反映されない
+const ROUTING = "https://routing.openstreetmap.de/routed-foot";
+const ROUTE_MAX_M = 50000; // 直線で50kmより遠いときは道順を出さない（徒歩のため）
+
+function parseLatLng(s) {
+  const v = String(s || "").split(",").map(Number);
+  if (v.length !== 2 || !v.every(Number.isFinite) || Math.abs(v[0]) > 90 || Math.abs(v[1]) > 180) return null;
+  return { lat: v[0], lng: v[1] };
+}
+function distMeters(a, b) {
+  const R = 6371000, r = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * r, dLng = (b.lng - a.lng) * r;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+async function walkRoute(url, env, ctx) {
+  const a = parseLatLng(url.searchParams.get("from")), b = parseLatLng(url.searchParams.get("to"));
+  if (!a || !b) return err("invalid", 400);
+  if (distMeters(a, b) > ROUTE_MAX_M) return err("too_far", 422);
+  const c5 = (p) => `${p.lng.toFixed(5)},${p.lat.toFixed(5)}`; // OSRMは「経度,緯度」の順。約1m単位に丸める
+  const osrm = `${env.ROUTING_URL || ROUTING}/route/v1/driving/${c5(a)};${c5(b)}?overview=full&geometries=geojson&steps=true`;
+  const headers = { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" };
+  const cache = caches.default;
+  const cacheKey = new Request(osrm);
+  const hit = await cache.match(cacheKey);
+  if (hit) return new Response(hit.body, { headers });
+
+  let data, upstream;
+  try {
+    upstream = await fetch(osrm, { headers: { "User-Agent": UA, Referer: "https://workers.dev/" } });
+    data = await upstream.json();
+  } catch (e) {
+    return err("route_failed", 502);
+  }
+  if (data && (data.code === "NoRoute" || data.code === "NoSegment")) return err("no_route", 404);
+  const rt = data && data.code === "Ok" && data.routes && data.routes[0];
+  if (!upstream.ok || !rt || !rt.geometry || !Array.isArray(rt.geometry.coordinates)) return err("route_failed", 502);
+
+  const r6 = (v) => Math.round(v * 1e6) / 1e6;
+  const steps = [];
+  for (const leg of rt.legs || []) {
+    for (const st of leg.steps || []) {
+      const m = st.maneuver || {};
+      if (!Array.isArray(m.location)) continue;
+      steps.push({
+        lat: r6(m.location[1]),
+        lng: r6(m.location[0]),
+        type: String(m.type || ""), // depart / turn / new name / continue / end of road / fork / roundabout / arrive など
+        mod: String(m.modifier || ""), // left / right / slight left / sharp right / straight / uturn など
+        name: String(st.name || "").slice(0, 60),
+        dist: Math.round(st.distance || 0), // この区間の長さ（m）
+      });
+    }
+  }
+  const body = JSON.stringify({
+    dist: Math.round(rt.distance || 0),
+    time: Math.round(rt.duration || 0),
+    coords: rt.geometry.coordinates.map((c) => [r6(c[1]), r6(c[0])]), // 画面側（Leaflet）は「緯度,経度」
+    steps,
+  });
+  ctx.waitUntil(cache.put(cacheKey, new Response(body, { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=86400" } })));
+  return new Response(body, { headers });
+}
+
 // ---------- 各隊の位置 ----------
 const POSITION_TTL_MS = 3 * 60 * 60 * 1000; // 3時間更新がない位置は消す
 
@@ -788,6 +858,11 @@ export default {
         if (!user) return err("unauthorized", 401); // 外部からの乱用防止のためログイン必須
         if (method !== "GET") return err("method_not_allowed", 405);
         return path === "/api/geocode" ? await geocode(url, env, ctx) : await reverse(url, env, ctx);
+      }
+      if (path === "/api/route") {
+        if (!user) return err("unauthorized", 401); // 外部からの乱用防止のためログイン必須
+        if (method !== "GET") return err("method_not_allowed", 405);
+        return await walkRoute(url, env, ctx);
       }
       if (path === "/api/me" && method === "GET") {
         if (!user) return err("unauthorized", 401);

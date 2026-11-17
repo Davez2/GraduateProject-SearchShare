@@ -77,7 +77,7 @@ header button{padding:.3em .8em;font-size:12px}
 .acts button{flex:1}
 .acts .del{flex:0 0 auto;color:var(--warn);border-color:var(--warn)}
 .acts .del:hover{background:var(--warn);color:var(--hi-ink)}
-.toast{position:absolute;left:50%;bottom:86px;transform:translateX(-50%);background:var(--hi);color:var(--hi-ink);padding:6px 16px;font-size:13px;z-index:1004;white-space:nowrap}
+.toast{position:absolute;left:50%;bottom:86px;transform:translateX(-50%);background:var(--hi);color:var(--hi-ink);padding:6px 16px;font-size:13px;z-index:1004;width:max-content;max-width:calc(100% - 24px);text-align:center}   /* 長い文は折り返す */
 @media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(12px);opacity:0}}}
 body{font-size:16px}
 label{opacity:.9;font-size:13px;font-weight:700}
@@ -292,6 +292,8 @@ header .r #who{flex:1 1 auto;min-width:0}
 /* ---------- v2.9 ナビ・方位・オフライン地図 ---------- */
 .gps-acc{fill:var(--mark);fill-opacity:.07;stroke:var(--mark);stroke-opacity:.45}
 .nav-line{stroke:var(--mark);stroke-opacity:.85;fill:none}
+.nav-route{stroke:var(--mark);stroke-opacity:.8;fill:none;stroke-linecap:round;stroke-linejoin:round}   /* v2.10 道順 */
+#navMode.on{background:var(--ink);color:var(--panel)}
 .corow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
 .fac-pop button+button{margin-top:6px}
 .navbar{position:absolute;left:10px;right:10px;bottom:26px;z-index:1001;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;background:var(--panel);border:2px solid var(--ink);padding:8px 10px;box-shadow:0 3px 0 rgba(0,0,0,.18)}
@@ -328,6 +330,16 @@ header .r #who{flex:1 1 auto;min-width:0}
 .off-saved button{min-height:34px;font-size:12px;padding:.1em .7em}
 .off-saved .del{color:var(--warn);border-color:var(--warn)}
 #zs{font-size:12px;padding:0}
+/* ---------- v2.9.2 地点・住所・隊へのナビ ---------- */
+#map{-webkit-touch-callout:none}   /* 長押しで画像保存などのメニューを出さない */
+.sr-row{display:flex;align-items:stretch;border-bottom:1px solid var(--line)}
+.sr-row .lp-row{flex:1;border-bottom:0}
+.sr-row .sr-nav{flex:0 0 auto;min-height:0;border:0;border-left:1px solid var(--line);padding:4px 12px;font-size:12px;background:none}
+.sr-row .sr-nav:hover{background:var(--hi);color:var(--hi-ink)}
+.leaflet-marker-icon.team-ic{pointer-events:none!important}   /* 隊の印は、まん中の丸だけ押せる（周りのピンや地図を押せるように） */
+.team-ic .hit{pointer-events:auto;cursor:pointer}
+.fac-pop .tp-meta{font-size:12px;margin:-4px 0 8px}
+.fac-pop .tp-meta.old{color:var(--warn)}
 </style>
 </head>
 <body>
@@ -421,7 +433,14 @@ ja:{title:"捜索状況共有",login:"ログイン",register:"新規登録",team
  vNotePh:"例：北東の部屋、呼びかけに応答",offlineNoSave:"オフライン中は保存できません",delOther:"他の隊が追加したものは削除できません",cancel:"キャンセル",
  photos:"写真",phAdd:"＋ 写真",phNone:"写真なし",phUploading:"送信中…",phFail:"写真を送信できませんでした",phTooBig:"写真が大きすぎます",phLoadFail:"写真を読み込めません",
  offlineSince:"オフライン（最終同期 {time}）",
+ navModeOn:"道順：ON",navModeOff:"道順：OFF",routeInfo:"道順・徒歩 約{min}分",routeLoading:"道順を取得中…",routeOffline:"圏外のため直線で案内（つながると道順に切り替え）",
+ routeNone:"道順が見つかりません（直線で案内）",routeFar:"遠すぎるため直線で案内",routeFail:"道順を取得できません（直線で案内）",routeOff:"道から外れています",routeRe:"道順を検索し直しています…",
+ navNext:"{d}先で{turn}",navNow:"まもなく{turn}",navAlong:"道なりに進む",navOnto:"（{name}）",
+ turnL:"左折",turnR:"右折",turnSL:"斜め左へ",turnSR:"斜め右へ",turnHL:"大きく左へ",turnHR:"大きく右へ",turnU:"引き返す",turnRb:"ロータリーへ",
+ routeAttr:'道順：<a href="https://routing.openstreetmap.de/about.html" target="_blank" rel="noopener">FOSSGIS/OSRM</a>（<a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener">地図の誤りを報告</a>）',
  navGo:"ここへナビ",navTo:"目的地：{name}",navDir:"{dir}の方向・徒歩 約{min}分（直線）",navAcc:"GPS ±{m}m",navStale:"GPS更新なし {s}秒",
+ navPoint:"地図上の地点",ptTitle:"選んだ地点",navShort:"ナビ",teamPosH:"隊の位置",navTeam:"この隊へナビ",fromHere:"ここから {d}",navTeamAge:"相手の位置：{age}",
+ hintLongPress:"ヒント：地図を長押し（パソコンは右クリック）すると、その地点へナビできます",
  navNorthUp:"矢印：地図の上＝北",navCompassOn:"矢印：スマホの向き",navMoveDir:"矢印：進む方向",navWaiting:"現在地を取得中…",navGpsDenied:"位置情報の利用が許可されていません",
  navArrived:"目的地に到着しました",navEnd:"終了",navFit:"全体",navRoute:"地図アプリ",navCompass:"コンパス",navCompassNo:"方位センサーを使えません（地図の上＝北で表示します）",
  dirs:"北,北東,東,南東,南,南西,西,北西",
@@ -481,7 +500,14 @@ en:{title:"Search Status Share",login:"Log in",register:"Sign up",team:"Team",id
  vNotePh:"e.g. NE room, responds to calls",offlineNoSave:"Can't save while offline",delOther:"You can't delete another team's entry",cancel:"Cancel",
  photos:"Photos",phAdd:"+ Photo",phNone:"No photos",phUploading:"Uploading…",phFail:"Couldn't upload the photo",phTooBig:"Photo is too large",phLoadFail:"Couldn't load photo",
  offlineSince:"Offline (last sync {time})",
+ navModeOn:"Roads: ON",navModeOff:"Roads: OFF",routeInfo:"By road · ~{min} min walk",routeLoading:"Getting the route…",routeOffline:"No connection: straight line (switches to roads when online)",
+ routeNone:"No route found (straight line)",routeFar:"Too far for a walking route (straight line)",routeFail:"Couldn't get the route (straight line)",routeOff:"Off the route",routeRe:"Recalculating the route…",
+ navNext:"In {d}, {turn}",navNow:"Now {turn}",navAlong:"Continue along the route",navOnto:" onto {name}",
+ turnL:"turn left",turnR:"turn right",turnSL:"bear left",turnSR:"bear right",turnHL:"sharp left",turnHR:"sharp right",turnU:"turn back",turnRb:"enter the roundabout",
+ routeAttr:'Route: <a href="https://routing.openstreetmap.de/about.html" target="_blank" rel="noopener">FOSSGIS/OSRM</a> (<a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener">report a map error</a>)',
  navGo:"Navigate here",navTo:"To: {name}",navDir:"Towards {dir} · ~{min} min walk (straight line)",navAcc:"GPS ±{m} m",navStale:"no GPS update for {s}s",
+ navPoint:"Point on map",ptTitle:"Selected point",navShort:"Go",teamPosH:"Team position",navTeam:"Navigate to this team",fromHere:"{d} from you",navTeamAge:"Their position: {age}",
+ hintLongPress:"Tip: long-press the map (right-click on a PC) to navigate to that point",
  navNorthUp:"Arrow: map up = north",navCompassOn:"Arrow follows the phone",navMoveDir:"Arrow: direction of travel",navWaiting:"Getting your location…",navGpsDenied:"Location permission is not allowed",
  navArrived:"You have arrived",navEnd:"End",navFit:"Overview",navRoute:"Maps app",navCompass:"Compass",navCompassNo:"Compass unavailable (showing map-up = north)",
  dirs:"N,NE,E,SE,S,SW,W,NW",
@@ -514,7 +540,7 @@ function applyI18n(){
   $$("[data-i18n-aria]").forEach(function(el){el.setAttribute("aria-label",t(el.getAttribute("data-i18n-aria")))});
   $$(".lg").forEach(function(el){el.textContent=t("lang")});
   setMode(mode);renderToggles();renderLayerSelect();
-  if(user){$("who").textContent=whoText();render();renderNet();renderTeams();renderFac();if(nav)buildNavBar();if(draft){collectForm();openSheet(draft,true)}if($("srch"))openSearch()}
+  if(user){$("who").textContent=whoText();render();renderNet();renderTeams();renderFac();if(nav){drawRoute();buildNavBar();updNav()}if(draft){collectForm();openSheet(draft,true)}if($("srch"))openSearch()}
 }
 $$(".lg").forEach(function(el){el.onclick=function(){lang=lang==="ja"?"en":"ja";S.set("ss_lang",lang);applyI18n()}});
 
@@ -590,6 +616,7 @@ function enter(u){
   startShare();
   setTimeout(loadFacilities,0);
   setTimeout(resumeNav,0);   // ナビ中にアプリが閉じた・再読み込みした場合は続きから
+  if(!S.get("ss_hint_lp")){S.set("ss_hint_lp",1);setTimeout(function(){if(user)toast(t("hintLongPress"),7000)},3000)}   // 長押しナビのヒント（端末ごとに1回）
   api("GET","/api/me").then(function(m){ // 古いセッションでも、種類（隊員/本部）を最新にする
     if(user&&m&&m.role&&m.role!==user.role){user.role=m.role;S.set("ss_session",user);$("who").textContent=whoText()}
   },function(){});
@@ -758,7 +785,7 @@ function distM(a,b){
 /* ---------- map（Leaflet + OpenStreetMap） ---------- */
 var ST_FULL_ZOOM=18; // これ以上のズームで建物単位の詳細表示、未満は色点のみ
 var WORLD_LAT=85.0511;   // メルカトル図法の地図の上端・下端の緯度
-var map=L.map("map",{zoomControl:false,attributionControl:true,maxZoom:19,
+var map=L.map("map",{zoomControl:false,attributionControl:true,maxZoom:19,tapHold:true,   // tapHold：iPhoneでも長押しを使えるように
   maxBounds:[[-WORLD_LAT,-1e6],[WORLD_LAT,1e6]],maxBoundsViscosity:1   // 上下は世界の端で止める。横（経度）は止めない＝地球儀のように回せる
 }).setView([c.lat,c.lng],17);
 // 背景地図：OpenStreetMap ／ 国土地理院（地理院タイル：無料・登録不要、出典表示が必要）
@@ -917,10 +944,11 @@ function fmtDist(m){return m<1000?Math.round(m)+" m":(m/1000).toFixed(1)+" km"}
 function teamIcon(p,age,lv){
   var dash=lv===2?' stroke-dasharray="3 2"':'',txt=(lv===2?"! ":"")+fmtAge(age);
   var svg='<svg width="96" height="60" viewBox="-48 -30 96 60" style="overflow:visible" opacity="'+[1,.8,.55][lv]+'">'+
+    '<circle class="hit" r="20" fill="transparent"/>'+   // 押せる範囲（指で押しやすい大きさ）
     '<circle r="10" fill="var(--panel)" stroke="var(--ink)" stroke-width="3"'+dash+'/><path d="M0,-6 L5,5 L0,2.5 L-5,5 Z" fill="var(--ink)"/>'+
     '<text y="-17" text-anchor="middle" font-size="12">'+esc(p.team)+'</text>'+
     '<text y="29" text-anchor="middle" font-size="11"'+(lv===2?' style="fill:var(--warn)"':'')+'>'+esc(txt)+'</text></svg>';
-  return L.divIcon({html:svg,className:"pin-ic",iconSize:[96,60],iconAnchor:[48,30]});
+  return L.divIcon({html:svg,className:"pin-ic team-ic",iconSize:[96,60],iconAnchor:[48,30]});
 }
 function renderTeams(){
   teamLayer.clearLayers();
@@ -928,14 +956,32 @@ function renderTeams(){
   if(showTeams)teamPos.forEach(function(p){
     if(p.id===user.id)return; // 自分の位置は、いつもの現在地マークで表示
     var age=nowS()-p.t,lv=ageLevel(age);
-    // 各隊の印は押せないようにして、同じ場所のピンを押せるようにする（ピンより奥に描く）
-    teamLayer.addLayer(L.marker([p.lat,p.lng],{icon:teamIcon(p,age,lv),zIndexOffset:-500,interactive:false,keyboard:false}));
+    // 押せるのはまん中の丸だけ（CSS .team-ic）。ピンより奥に描くので、重なったときはピンが押せる
+    var m=L.marker([p.lat,p.lng],{icon:teamIcon(p,age,lv),zIndexOffset:-500,keyboard:false});
+    m.on("click",function(e){
+      if(placing||vplacing){map.fire("click",{latlng:e.latlng});return}   // 置く場所を選んでいる途中なら、地図を押したのと同じ
+      openTeamPop(p);
+    });
+    teamLayer.addLayer(m);
   });
   updateNearest();
 }
+function teamNavName(p){return p.team+"（"+p.id+"）"}
+function openTeamPop(p){
+  var age=nowS()-p.t,lv=ageLevel(age),me=navPos||gps,el=document.createElement("div");el.className="fac-pop";
+  el.innerHTML='<small>'+esc(t("teamPosH"))+'</small><b>'+esc(teamNavName(p))+'</b>'+
+    '<div class="tp-meta'+(lv===2?' old':'')+'">'+esc((lv===2?"! ":"")+fmtAge(age)+(me?" · "+t("fromHere",{d:fmtDist(distM(me,p))}):""))+'</div>'+
+    '<button type="button" class="solid" data-nav="1">'+esc(t("navTeam"))+'</button>';
+  el.querySelector("[data-nav]").onclick=function(){
+    map.closePopup();
+    // 相手が動いたら、目的地も一緒に動く（posId の位置を追いかける）
+    navGo({lat:p.lat,lng:p.lng,name:teamNavName(p),posId:p.id,posT:p.t});
+  };
+  popAt([p.lat,p.lng],el,8);
+}
 function fetchPositions(){
   api("GET","/api/positions").then(function(r){
-    teamPos=r.positions||[];posSkew=(r.now||Date.now())-Date.now();renderTeams();
+    teamPos=r.positions||[];posSkew=(r.now||Date.now())-Date.now();renderTeams();navTeamUpdate();
   },function(){});
 }
 // 編集画面：この現場に近い隊（応援の候補）を、距離の近い順に最大3隊
@@ -1114,8 +1160,12 @@ function openSearch(){
     $("sr").innerHTML='<div class="msg">'+esc(t("searching"))+'</div>';
     api("GET","/api/geocode?q="+encodeURIComponent(q)+"&lang="+lang).then(function(list){
       if(!$("sr"))return;
-      $("sr").innerHTML=list.length?list.map(function(r,i){return '<button type="button" class="lp-row" data-i="'+i+'">'+esc(r.label)+'</button>'}).join(""):'<div class="msg">'+esc(t("noResult"))+'</div>';
+      // 住所を押す → その場所にピン ／ 「ナビ」→ ピンを置かずに、その場所へナビ
+      $("sr").innerHTML=list.length?list.map(function(r,i){return '<div class="sr-row"><button type="button" class="lp-row" data-i="'+i+'">'+esc(r.label)+'</button>'+
+        '<button type="button" class="sr-nav" data-n="'+i+'" aria-label="'+esc(t("navGo")+"："+r.label)+'">'+esc(t("navShort"))+'</button></div>'}).join(""):'<div class="msg">'+esc(t("noResult"))+'</div>';
       $("sr").onclick=function(ev){
+        var n=ev.target.closest(".sr-nav");
+        if(n){var q=list[+n.getAttribute("data-n")];closeSearch();startNav({lat:q.lat,lng:q.lng,name:q.label});return}
         var b=ev.target.closest(".lp-row");if(!b)return;var r=list[+b.getAttribute("data-i")];
         closeSearch();map.setView([r.lat,r.lng],18);
         var d=blank({lat:r.lat,lng:r.lng});d.address=r.label;openSheet(d);
@@ -1870,7 +1920,7 @@ function drawGpsHeading(){
 }
 
 /* ---------- ナビ（目的地までの方向と距離。GPSと方位センサーだけで動くので、圏外でも使える） ---------- */
-var nav=null,navWatch=null,navPos=null,navErr=null,navArrived=false,navFitted=false,wakeLock=null,navTick=null;
+var nav=null,navWatch=null,navPos=null,navErr=null,navArrived=false,navFitted=false,wakeLock=null,navTick=null,navTgt=null;
 var navLayer=L.layerGroup().addTo(map),navLine=null;
 function navKey(){return "ss_nav_"+(user?user.id:"")}
 function bearingDeg(a,b){
@@ -1886,7 +1936,13 @@ function keepAwake(){ // ナビ中は画面を消さない（画面が消える�
 function startNav(tg){
   if(!tg||!isFinite(+tg.lat)||!isFinite(+tg.lng))return;
   stopNav();
-  nav={lat:+tg.lat,lng:+tg.lng,name:tg.name||""};S.set(navKey(),nav);
+  nav={lat:+tg.lat,lng:+tg.lng,name:tg.name||""};
+  if(tg.posId){nav.posId=tg.posId;nav.posT=tg.posT||null}   // 隊へのナビ：相手の位置が更新されたら目的地も動かす
+  if(tg.pt)nav.pt=1;   // 地図上の地点（名前は住所が分かれば住所）
+  nav.mode=tg.mode==="line"||tg.mode==="road"?tg.mode:(S.get(NAVMODE_KEY)==="line"?"line":"road");   // 道順／直線（前回の選択を使う）
+  if(tg.route&&tg.route.coords&&tg.route.coords.length>1)nav.route=tg.route;   // 再開したとき：保存しておいた道順（圏外でも使える）
+  routeBusy=false;routeAt=0;routeErr=null;routeSeq++;offFixes=0;lastOffT=0;routeProg=null;
+  S.set(navKey(),nav);
   navArrived=false;navFitted=false;navErr=null;navTouched=0;
   if($("sheet")&&!isDirty())closeSheet();
   map.closePopup();
@@ -1894,9 +1950,11 @@ function startNav(tg){
   $("stage").classList.add("navon");
   var tgt=L.divIcon({className:"pin-ic",iconSize:[44,44],iconAnchor:[22,22],
     html:'<svg width="44" height="44" viewBox="-22 -22 44 44" style="overflow:visible"><circle class="pulse" r="12" fill="none" stroke="var(--mark)" stroke-width="3"/><circle r="17" fill="none" stroke="var(--mark)" stroke-width="2.5" stroke-dasharray="5 4"/><circle r="4" fill="var(--mark)"/></svg>'});
-  navLayer.addLayer(L.marker([nav.lat,nav.lng],{icon:tgt,interactive:false,keyboard:false,zIndexOffset:2400}));
+  navTgt=L.marker([nav.lat,nav.lng],{icon:tgt,interactive:false,keyboard:false,zIndexOffset:2400});
+  navLayer.addLayer(navTgt);
   navLine=L.polyline([[nav.lat,nav.lng],[nav.lat,nav.lng]],{className:"nav-line",interactive:false,weight:4,dashArray:"10 8"});
   navLayer.addLayer(navLine);
+  drawRoute();
   buildNavBar();
   if(navigator.geolocation){
     // 端末が最後に測った位置をすぐ使う（同じ場所に止まっていると、新しい測位がすぐには来ないことがあるため）
@@ -1922,7 +1980,8 @@ function setNavPos(p){
 function stopNav(){
   if(navWatch!=null&&navigator.geolocation)navigator.geolocation.clearWatch(navWatch);
   navWatch=null;clearInterval(navTick);navTick=null;
-  navLayer.clearLayers();navLine=null;navPos=null;
+  navLayer.clearLayers();navLine=null;navTgt=null;navPos=null;
+  routeLine=null;routeEnd=null;routeProg=null;routeSeq++;routeBusy=false;
   var el=$("nav");if(el)el.remove();
   $("stage").classList.remove("navon");
   if(wakeLock){try{wakeLock.release()}catch(e){}wakeLock=null}
@@ -1936,11 +1995,17 @@ function buildNavBar(){
   el.innerHTML='<div class="nav-arrow" id="navArr" aria-hidden="true"><svg width="64" height="64" viewBox="-32 -32 64 64"><g id="navArrG">'+
       '<path d="M0,-27 L17,15 L0,6 L-17,15 Z" fill="var(--mark)" stroke="var(--panel)" stroke-width="2" stroke-linejoin="round"/></g></svg></div>'+
     '<div class="nav-info" aria-live="polite"><small id="navTo"></small><b id="navD" class="mono"></b><span id="navDir"></span><span id="navSub"></span></div>'+
-    '<div class="nav-btns"><button type="button" id="navCmp" class="hide">'+esc(t("navCompass"))+'</button><button type="button" id="navFit">'+esc(t("navFit"))+'</button>'+
+    '<div class="nav-btns"><button type="button" id="navCmp" class="hide">'+esc(t("navCompass"))+'</button><button type="button" id="navMode"></button><button type="button" id="navFit">'+esc(t("navFit"))+'</button>'+
     '<button type="button" id="navRoute">'+esc(t("navRoute"))+'</button><button type="button" class="del" id="navEnd">'+esc(t("navEnd"))+'</button></div>';
   $("stage").appendChild(el);
   $("navEnd").onclick=stopNav;
   $("navFit").onclick=function(){fitNav(true)};
+  $("navMode").onclick=function(){   // 道順 ⇄ 直線（がれき・通行止めで道が使えないときは直線に）
+    nav.mode=navMode()==="road"?"line":"road";S.set(NAVMODE_KEY,nav.mode);saveNav();
+    routeErr=null;offFixes=0;routeAt=0;
+    if(nav.mode==="road")drawRoute();else clearRoute();
+    updNav();
+  };
   $("navCmp").onclick=function(){enableCompass().then(function(ok){if(!ok)toast(t("navCompassNo"),3000);drawNavBar()})};
   $("navRoute").onclick=function(){ // 道路の経路は地図アプリに任せる（ネット接続、またはアプリ側のオフライン地図が必要）
     window.open("https://www.google.com/maps/dir/?api=1&destination="+nav.lat.toFixed(6)+","+nav.lng.toFixed(6)+"&travelmode=walking","_blank","noopener");
@@ -1962,6 +2027,7 @@ function fitNav(force){
   if(!nav)return;
   var pts=[[nav.lat,nav.lng]];if(navPos)pts.push([navPos.lat,navPos.lng]);
   var p=navPads(),b=L.latLngBounds(pts);
+  if(routeLine&&useRoute())b.extend(routeLine.getBounds());
   if(force||!navVisible().contains(b))
     map.fitBounds(b,{paddingTopLeft:[p.l,p.top],paddingBottomRight:[p.r,p.bottom],maxZoom:pts.length===1?Math.max(map.getZoom(),17):18});
 }
@@ -1981,37 +2047,50 @@ map.getContainer().addEventListener("touchstart",function(e){if(e.touches&&e.tou
 $("zi").addEventListener("click",navTouch);$("zo").addEventListener("click",navTouch);
 function drawNavArrow(){
   var g=$("navArrG");if(!g||!nav||!navPos)return;
-  var br=bearingDeg(navPos,nav),h=curHeading(),rot=h==null?br:br-h;
+  var br=bearingDeg(navPos,navAim()),h=curHeading(),rot=h==null?br:br-h;
   g.setAttribute("transform","rotate("+(((rot%360)+360)%360).toFixed(1)+")");
   $("navArr").classList.toggle("fixed",h==null);
 }
 function drawNavBar(){
   if(!$("nav")||!nav)return;
-  $("navTo").textContent=t("navTo",{name:nav.name||t("unnamed")});
+  $("navTo").textContent=t("navTo",{name:nav.name||t(nav.pt?"navPoint":"unnamed")});
   var h=curHeading();
   $("navCmp").classList.toggle("hide",!needCompassBtn());
+  var mb=$("navMode");mb.textContent=t(navMode()==="road"?"navModeOn":"navModeOff");mb.classList.toggle("on",navMode()==="road");mb.setAttribute("aria-pressed",navMode()==="road");
   if(!navPos){
     $("navD").textContent="—";$("navDir").textContent=navErr&&navErr.code===1?t("navGpsDenied"):t("navWaiting");$("navSub").textContent="";
     $("navArr").classList.add("wait");return;
   }
   $("navArr").classList.remove("wait");
-  var d=distM(navPos,nav),br=bearingDeg(navPos,nav),mins=Math.max(1,Math.ceil(d/70));
+  var road=useRoute()&&routeProg,off=road&&routeProg.off>offLim();
+  var d=road?routeRemain():distM(navPos,nav),br=bearingDeg(navPos,nav),mins=Math.max(1,Math.ceil(d/70));
   $("navD").textContent=fmtDist(d);
-  $("navDir").textContent=navArrived?t("navArrived"):t("navDir",{dir:dirName(br),min:mins});
+  var dir;
+  if(navArrived)dir=t("navArrived");
+  else if(road){var nt=nextTurn();dir=nt?(nt.d<=20?t("navNow",{turn:nt.txt}):t("navNext",{d:fmtDist(nt.d),turn:nt.txt})):t("navAlong")}
+  else dir=t("navDir",{dir:dirName(br),min:mins});
+  $("navDir").textContent=dir;
   var age=Math.round((Date.now()-navPos.t)/1000);
-  var sub=[];
+  var sub=[],tAge=nav.posId&&nav.posT?nowS()-nav.posT:0;
+  if(navMode()==="road"){
+    if(road){sub.push(t("routeInfo",{min:mins}));if(off)sub.push(t(routeBusy?"routeRe":"routeOff"))}
+    else sub.push(t(routeBusy||!routeErr?"routeLoading":routeErr.key));
+  }
+  if(tAge)sub.push(t("navTeamAge",{age:fmtAge(tAge)}));   // 隊へのナビ：相手の位置がいつのものか
   if(navPos.acc!=null)sub.push(t("navAcc",{m:Math.round(navPos.acc)}));
   if(age>30)sub.push(t("navStale",{s:age}));
   sub.push(h==null?t("navNorthUp"):hasHeading()?t("navCompassOn"):t("navMoveDir"));
   $("navSub").textContent=sub.join(" · ");
-  $("navSub").classList.toggle("warn",age>30||(navPos.acc||0)>50);
+  $("navSub").classList.toggle("warn",age>30||(navPos.acc||0)>50||tAge>=AGE_OLD||!!off);
   $("nav").classList.toggle("arrived",navArrived);
   drawNavArrow();
 }
 function updNav(){
   if(!nav)return;
   if(navPos){
-    if(navLine)navLine.setLatLngs([[navPos.lat,navPos.lng],[nav.lat,nav.lng]]);
+    routeProg=useRoute()?projRoute(navPos):null;
+    updNavLines();
+    routeCheck();
     var d=distM(navPos,nav);
     // 到着：15m以内（GPSの誤差が大きいときは、その分だけ広く。最大40m）
     if(!navArrived&&Date.now()-navPos.t<30000&&d<=Math.max(15,Math.min(navPos.acc||0,40))){
@@ -2023,6 +2102,172 @@ function updNav(){
   drawNavBar();
 }
 document.addEventListener("visibilitychange",function(){if(!document.hidden)keepAwake()});
+
+/* ---------- 道順（道路に沿ったナビ。v2.10） ----------
+ * ナビを始めると、サーバー経由で徒歩の道順を取得する（OpenStreetMap の道路データ・FOSSGIS の OSRM サーバー）。
+ * 道順はナビと一緒に端末に保存 → 圏外になっても、道に沿った残りの距離・次の曲がり角・矢印はそのまま使える。
+ * 道から外れたら、ネットにつながっていれば道順を取り直す（20秒に1回まで）。圏外なら「道から外れています」と表示し、矢印は道に戻る方向を指す。
+ * 道順が取れないとき（圏外で始めた・道が見つからない）は、これまで通り直線で案内する。
+ * 注意：道路のデータは平常時のもの。がれき・通行止めは分からないので、通れないときは「道順：OFF」で直線に切り替える。
+ */
+var NAVMODE_KEY="ss_navmode",ROUTE_RETRY_MS=20000,ROUTE_AHEAD_M=25;
+var routeLine=null,routeEnd=null,routeBusy=false,routeAt=0,routeErr=null,routeSeq=0,offFixes=0,lastOffT=0,routeProg=null;
+function navMode(){return nav&&nav.mode==="line"?"line":"road"}
+function useRoute(){return !!(nav&&navMode()==="road"&&nav.route&&nav.route.coords&&nav.route.coords.length>1)}
+function saveNav(){if(nav&&user)S.set(navKey(),nav)}
+function offLim(){return Math.max(35,Math.min(navPos&&navPos.acc||0,60))}   // これ以上離れたら「道から外れた」（GPSの誤差の分だけ広く）
+// 下準備：始点から各点までの距離（m）と、各曲がり角の位置
+function prepRoute(r){
+  var c=r.coords,cum=[0];
+  for(var i=1;i<c.length;i++)cum.push(cum[i-1]+distM({lat:c[i-1][0],lng:c[i-1][1]},{lat:c[i][0],lng:c[i][1]}));
+  r._cum=cum;r._len=cum[cum.length-1];
+  var j=0;
+  (r.steps||[]).forEach(function(st){   // 曲がり角は道順の点のどれか → 前から順に、一番近い点を探す
+    var best=1e18,bi=j;
+    for(var k=j;k<c.length;k++){var dd=Math.abs(c[k][0]-st.lat)+Math.abs(c[k][1]-st.lng);if(dd<best){best=dd;bi=k}if(dd<1e-7)break}
+    st._at=cum[bi];j=bi;
+  });
+  return r;
+}
+// 現在地から道順への一番近い点（道順の始点からの距離 along・道からの距離 off）
+function projRoute(p){
+  var r=nav.route;if(!r._cum)prepRoute(r);
+  var c=r.coords,kx=111320*Math.cos(p.lat*Math.PI/180),ky=110540,best=null;
+  for(var i=0;i<c.length-1;i++){
+    var ax=(c[i][1]-p.lng)*kx,ay=(c[i][0]-p.lat)*ky,dx=(c[i+1][1]-c[i][1])*kx,dy=(c[i+1][0]-c[i][0])*ky,
+        l2=dx*dx+dy*dy,u=l2?Math.max(0,Math.min(1,-(ax*dx+ay*dy)/l2)):0,x=ax+u*dx,y=ay+u*dy,d=Math.sqrt(x*x+y*y);
+    if(!best||d<best.off)best={off:d,i:i,u:u};
+  }
+  best.along=r._cum[best.i]+best.u*(r._cum[best.i+1]-r._cum[best.i]);
+  best.lat=c[best.i][0]+best.u*(c[best.i+1][0]-c[best.i][0]);best.lng=c[best.i][1]+best.u*(c[best.i+1][1]-c[best.i][1]);
+  return best;
+}
+function routePointAt(a){   // 始点から a m 進んだ点
+  var r=nav.route,c=r.coords,cum=r._cum,i=0;
+  while(i<cum.length-2&&cum[i+1]<a)i++;
+  var seg=cum[i+1]-cum[i],u=seg?Math.max(0,Math.min(1,(a-cum[i])/seg)):0;
+  return{lat:c[i][0]+u*(c[i+1][0]-c[i][0]),lng:c[i][1]+u*(c[i+1][1]-c[i][1])};
+}
+function routeLast(){var c=nav.route.coords;return{lat:c[c.length-1][0],lng:c[c.length-1][1]}}
+// 矢印が指す点：道順のときは、道に沿って25m先（道から外れていれば、道に戻りながら進む方向になる）。終点の近くでは目的地そのもの
+function navAim(){
+  if(!useRoute()||!routeProg||routeProg.along+ROUTE_AHEAD_M>=nav.route._len)return nav;
+  return routePointAt(routeProg.along+ROUTE_AHEAD_M);
+}
+function routeRemain(){return Math.max(0,nav.route._len-routeProg.along)+distM(routeLast(),nav)}   // 道に沿った残り＋終点から目的地まで
+var TURN_KEY={"left":"turnL","right":"turnR","slight left":"turnSL","slight right":"turnSR","sharp left":"turnHL","sharp right":"turnHR","uturn":"turnU"};
+function nextTurn(){   // 次の曲がり角（まっすぐ・道の名前が変わるだけの所は案内しない）
+  var st=nav.route.steps||[],a=routeProg.along;
+  for(var k=0;k<st.length;k++){
+    var s=st[k];if(s.type==="depart"||s._at<=a+3)continue;
+    if(s.type==="arrive")return null;
+    if((s.type==="new name"||s.type==="continue"||s.type==="notification")&&/^(slight|straight|$)/.test(s.mod||""))continue;
+    var key=/roundabout|rotary/.test(s.type)?"turnRb":TURN_KEY[s.mod];
+    if(!key)continue;
+    return{d:s._at-a,txt:t(key)+(s.name?t("navOnto",{name:s.name}):"")};
+  }
+  return null;
+}
+function clearRoute(){
+  if(routeLine){navLayer.removeLayer(routeLine);routeLine=null}
+  if(routeEnd){navLayer.removeLayer(routeEnd);routeEnd=null}
+  routeProg=null;
+}
+function drawRoute(){
+  clearRoute();
+  if(!useRoute())return;
+  var r=prepRoute(nav.route),c=r.coords,last=c[c.length-1];
+  routeLine=L.polyline(c,{className:"nav-route",weight:6,interactive:false,attribution:t("routeAttr")});   // 出典の表示は利用規約で必要
+  navLayer.addLayer(routeLine);
+  if(distM({lat:last[0],lng:last[1]},nav)>8){   // 道の終わりから目的地までは点線
+    routeEnd=L.polyline([last,[nav.lat,nav.lng]],{className:"nav-line",weight:3,dashArray:"4 6",interactive:false});
+    navLayer.addLayer(routeEnd);
+  }
+}
+// 現在地からの点線：道順のときは「道から離れているときだけ、道まで」。直線のときは目的地まで
+function updNavLines(){
+  if(!navLine||!navPos)return;
+  if(useRoute()&&routeProg)navLine.setLatLngs(routeProg.off>8?[[navPos.lat,navPos.lng],[routeProg.lat,routeProg.lng]]:[]);
+  else navLine.setLatLngs([[navPos.lat,navPos.lng],[nav.lat,nav.lng]]);
+}
+function navTargetKey(){return nav?nav.lat.toFixed(4)+","+nav.lng.toFixed(4):""}
+function routeCheck(){
+  if(navMode()!=="road"||!navPos)return;
+  if(!useRoute()){requestRoute();return}
+  if(Date.now()-navPos.t<30000&&navPos.t!==lastOffT){   // 新しい測位のたびに数える
+    lastOffT=navPos.t;offFixes=routeProg&&routeProg.off>offLim()?offFixes+1:0;
+  }
+  var r=nav.route;
+  if(offFixes>=2)requestRoute();   // 2回続けて道から外れた → 取り直す
+  else if(r.to&&distM({lat:r.to[0],lng:r.to[1]},nav)>40)requestRoute();   // 目的地（隊）が動いた
+}
+function requestRoute(){
+  if(!nav||!navPos||routeBusy||navMode()!=="road")return;
+  if(routeErr&&routeErr.perm&&routeErr.tk===navTargetKey())return;   // この目的地は道が見つからない（何度聞いても同じ）
+  if(Date.now()-routeAt<ROUTE_RETRY_MS)return;   // サーバーの利用規約のため、20秒に1回まで
+  routeBusy=true;routeAt=Date.now();
+  var seq=++routeSeq,to={lat:nav.lat,lng:nav.lng},first=!nav.route;
+  api("GET","/api/route?from="+navPos.lat.toFixed(5)+","+navPos.lng.toFixed(5)+"&to="+to.lat.toFixed(5)+","+to.lng.toFixed(5)).then(function(r){
+    routeBusy=false;if(seq!==routeSeq||!nav)return;   // その間にナビを終えた・目的地を変えた
+    if(!r||!r.coords||r.coords.length<2){routeErr={key:"routeFail"};drawNavBar();return}
+    delete r._status;r.to=[to.lat,to.lng];
+    nav.route=r;routeErr=null;offFixes=0;saveNav();drawRoute();updNav();
+    if(first&&Date.now()-navTouched>20000)fitNav(false);   // 道順が見えるように（地図を触った直後は動かさない）
+  },function(e){
+    routeBusy=false;if(seq!==routeSeq||!nav)return;
+    var code=e&&e.error;   // 取り直しに失敗しても、前の道順はそのまま使う
+    routeErr=e&&e._net?{key:"routeOffline"}:code==="no_route"?{key:"routeNone",perm:true}:code==="too_far"?{key:"routeFar",perm:true}:{key:"routeFail"};
+    routeErr.tk=navTargetKey();
+    drawNavBar();
+  });
+  drawNavBar();
+}
+window.addEventListener("online",function(){if(nav){routeAt=0;updNav()}});   // つながったら、すぐ道順を取りに行く
+// 編集中のピンがあれば確認してから、ナビを始める
+function navGo(tg){
+  var go=function(){closeSheet();startNav(tg)};
+  if($("sheet")&&isDirty())confirmDiscard("close",go);else go();
+}
+// 隊へのナビ：位置を取得するたび（10秒ごと）に、相手の新しい位置へ目的地を動かす。
+// 相手が位置共有をやめた・圏外のときは、最後に分かった位置のまま（「相手の位置：○分前」が増えていく）
+function navTeamUpdate(){
+  if(!nav||!nav.posId)return;
+  var p=teamPos.filter(function(x){return x.id===nav.posId})[0];
+  if(!p||(p.t===nav.posT&&p.lat===nav.lat&&p.lng===nav.lng))return;
+  nav.lat=p.lat;nav.lng=p.lng;nav.posT=p.t;S.set(navKey(),nav);
+  if(navTgt)navTgt.setLatLng([p.lat,p.lng]);
+  if(useRoute())drawRoute();
+  if(navArrived&&navPos&&distM(navPos,nav)>40)navArrived=false;   // 相手が離れたら、また到着を知らせる
+  updNav();
+  if(Date.now()-navTouched>20000)fitNav(false);   // 相手が画面の外に出たら、自分と相手が両方見えるように（地図を触った直後は動かさない）
+}
+// 地図の長押し（パソコンは右クリック）→ その地点へナビ／ピンを設置
+function popAt(ll,el,off){
+  var tl=$$(".tl")[0],top=tl?tl.offsetTop+tl.offsetHeight+12:80;   // 左上の表示・右のボタンに隠れない位置に出す
+  L.popup({offset:[0,-(off||0)],maxWidth:260,autoPan:true,autoPanPaddingTopLeft:L.point(12,top),autoPanPaddingBottomRight:L.point(64,16)})
+    .setLatLng(ll).setContent(el).openOn(map);
+}
+function navToPoint(ll){
+  navGo({lat:ll.lat,lng:ll.lng,name:"",pt:1});
+  api("GET","/api/reverse?lat="+ll.lat+"&lng="+ll.lng+"&lang="+lang).then(function(r){   // 住所が分かれば、目的地の名前にする（圏外なら「地図上の地点」のまま）
+    if(nav&&nav.pt&&nav.lat===ll.lat&&nav.lng===ll.lng&&r&&r.label){nav.name=r.label;S.set(navKey(),nav);drawNavBar()}
+  },function(){});
+}
+var lastLong=0;
+map.on("contextmenu",function(e){
+  if(!user||placing||vplacing||Date.now()-lastLong<800)return;   // 端末によっては長押しが2回届くので、1回にまとめる
+  lastLong=Date.now();
+  var ll=wrapLL(e.latlng),el=document.createElement("div");el.className="fac-pop";
+  el.innerHTML='<small>'+esc(t("ptTitle"))+'</small><b class="mono">'+ll.lat.toFixed(5)+', '+ll.lng.toFixed(5)+'</b>'+
+    '<button type="button" class="solid" data-nav="1">'+esc(t("navGo"))+'</button><button type="button" data-pin="1">'+esc(t("facPin"))+'</button>';
+  el.querySelector("[data-nav]").onclick=function(){map.closePopup();navToPoint(ll)};
+  el.querySelector("[data-pin]").onclick=function(){
+    map.closePopup();
+    var go=function(){closeSheet();openSheet(blank(ll))};
+    if($("sheet")&&isDirty())confirmDiscard("move",go);else go();
+  };
+  popAt(e.latlng,el,0);
+});
 
 /* ---------- オフライン用に地図を保存（国土地理院の地図のみ） ----------
  * OpenStreetMap のタイルは、規約で一括ダウンロード（オフライン用の先読み）が禁止されているため保存しない。
