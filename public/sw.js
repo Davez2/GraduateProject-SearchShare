@@ -4,12 +4,13 @@
  * 目的：電波が悪い・圏外でもアプリを開けるようにする。
  *  - アプリ本体（index.html・Leaflet など）は端末に保存し、オフラインでも表示
  *  - 一度表示した地図タイルは端末に保存（最大 TILE_MAX 枚）→ 圏外でも見たことのある範囲の地図は出る
+ *  - 「地図を保存」で保存した範囲（tiles-saved-v1。画面側が保存する）は、古い順に消されない
  *  - /api/*（ピン・位置などのデータ）はキャッシュしない。オフライン時の扱いは画面側
  *    （前回同期したデータの表示・未送信キュー）で行う
  *
  * アプリを更新したら VERSION を上げる → 古いキャッシュが削除される
  */
-const VERSION = "v2.7.0";
+const VERSION = "v2.9.1";
 const APP_CACHE = "app-" + VERSION;
 const TILE_CACHE = "tiles-v1";
 const TILE_MAX = 1500; // 約1500枚 ≒ 数十MB程度
@@ -55,6 +56,8 @@ self.addEventListener("fetch", (e) => {
     return e.respondWith(staleWhileRevalidate(req, e));
   }
   if (TILE_HOSTS.some((h) => url.hostname === h || url.hostname.endsWith("." + h))) {
+    // 地図に表示する画像だけを扱う。「地図を保存」が画面側から取りに行く分は、ここを通さない（二重に保存しないため）
+    if (req.destination !== "image") return;
     return e.respondWith(tile(req));
   }
 });
@@ -93,7 +96,7 @@ async function staleWhileRevalidate(req, e) {
 let puts = 0;
 async function tile(req) {
   const cache = await caches.open(TILE_CACHE);
-  const hit = await cache.match(req.url);
+  const hit = await caches.match(req.url); // 「見た地図」と「保存した地図（tiles-saved-v1）」の両方から探す
   if (hit) return hit;
   try {
     const res = await fetch(req.url, { mode: "cors", credentials: "omit" });
