@@ -1,0 +1,18 @@
+# 静的ファイル（index.html・app.js・Leaflet など）に付けるセキュリティ用ヘッダー。
+# Cloudflare Workers の静的アセットがこのファイルを読んで自動で付ける（/api/* は src/index.js 側で付ける）。
+#
+# CSP の要点：
+#  - script-src 'self'  … 自分のサーバーの .js 以外は実行しない。万一 XSS があっても、
+#                          localStorage のトークンを盗むスクリプトが動かない（だから app.js を分離した）
+#  - style-src に 'unsafe-inline' … Leaflet が style="" を直接書くため必要（スクリプトは実行できないので安全）
+#  - img-src / connect-src … 地図タイル（OSM・地理院）。connect-src は「地図を保存」で fetch するため
+#  - frame-ancestors 'none' … 他サイトの iframe に埋め込ませない（クリックジャッキング対策）
+# 地図の提供元を増やしたら、img-src と connect-src に追加すること。
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://cyberjapandata.gsi.go.jp; connect-src 'self' https://*.tile.openstreetmap.org https://cyberjapandata.gsi.go.jp; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self), camera=(self), microphone=(), payment=()
+  Strict-Transport-Security: max-age=31536000
