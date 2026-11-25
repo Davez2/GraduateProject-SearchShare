@@ -72,8 +72,9 @@ ja:{title:"捜索状況共有",login:"ログイン",register:"新規登録",team
  copiedInvite:"招待をコピーしました。LINEなどで隊員に送ってください",admFail:"操作に失敗しました",regenDone:"新しいコードを発行しました",teamCreated:"作成しました",
  tmNoTeams:"まだ隊がありません。上の欄から作成してください",admHelp:"隊を作成すると招待コードが発行されます。隊員はそのコードで登録します（コードを知らない人は登録できません）。",
  facLabel:"事前確認の施設",facAll:"施設：すべて",facSchool:"施設：学校",facFactory:"施設：工場",facPower:"施設：発電所",facMall:"施設：商業施設",facOff:"施設：非表示",
+ k_hospital:"病院",facHospital:"施設：病院",facBeds:"病床 {n}床",facEmg:"救急あり",
  k_school:"学校",k_factory:"工場",k_power:"発電所・変電所",k_mall:"大型商業施設",facZoom:"地図を拡大すると施設が表示されます",facPin:"この場所にピンを設置",facNoName:"（名称なし）",facAttr:"施設データ",
- s_school:"学校",s_kindergarten:"幼稚園・保育園",s_university:"大学",s_college:"専門学校・大学",s_plant:"発電所",s_substation:"変電所",
+ s_hospital:"病院",s_school:"学校",s_kindergarten:"幼稚園・保育園",s_university:"大学",s_college:"専門学校・大学",s_plant:"発電所",s_substation:"変電所",
  s_mall:"ショッピングモール",s_department_store:"百貨店",s_retail:"商業施設",s_works:"工場",s_industrial:"工業地域・工場",s_factory:"工場",dec10:"10減らす",totalPeople:"建物の人数（合計）",personsN:"{n}人",
  floorPhotos:"この階の写真",floorPhSave:"ピンを保存すると、階の写真を追加できます",
  lang:"EN",locale:"ja-JP"},
@@ -139,8 +140,9 @@ en:{title:"Search Status Share",login:"Log in",register:"Sign up",team:"Team",id
  copiedInvite:"Invite copied. Send it to the team members (e.g. via LINE)",admFail:"Action failed",regenDone:"New code issued",teamCreated:"Created",
  tmNoTeams:"No teams yet. Create one above",admHelp:"Creating a team issues an invite code. Members sign up with that code (people without it cannot sign up).",
  facLabel:"Facilities to check",facAll:"Facilities: all",facSchool:"Facilities: schools",facFactory:"Facilities: factories",facPower:"Facilities: power",facMall:"Facilities: malls",facOff:"Facilities: hidden",
+ k_hospital:"Hospital",facHospital:"Facilities: hospitals",facBeds:"{n} beds",facEmg:"Emergency dept.",
  k_school:"School",k_factory:"Factory",k_power:"Power plant / substation",k_mall:"Large commercial facility",facZoom:"Zoom in to see facilities",facPin:"Place a pin here",facNoName:"(no name)",facAttr:"Facility data",
- s_school:"School",s_kindergarten:"Kindergarten",s_university:"University",s_college:"College",s_plant:"Power plant",s_substation:"Substation",
+ s_hospital:"Hospital",s_school:"School",s_kindergarten:"Kindergarten",s_university:"University",s_college:"College",s_plant:"Power plant",s_substation:"Substation",
  s_mall:"Shopping mall",s_department_store:"Department store",s_retail:"Retail building",s_works:"Factory",s_industrial:"Industrial area",s_factory:"Factory",dec10:"Decrease by 10",totalPeople:"People in building (total)",personsN:"{n}",
  floorPhotos:"Photos of this floor",floorPhSave:"Save the pin first to add floor photos",
  lang:"日本語",locale:"en-GB"}};
@@ -641,27 +643,32 @@ $("shareBtn").onclick=function(){
 };
 $("teamsBtn").onclick=function(){showTeams=!showTeams;S.set("ss_showteams",showTeams);renderToggles();renderTeams()};
 
-/* ---------- 事前確認用の施設（学校・工場・発電所・大型商業施設：OpenStreetMapのデータ） ---------- */
-var FAC_Z=14,FAC_MINZOOM=15,FAC_TTL=7*24*3600*1000,FAC_KEEP=80;
-var FAC_KINDS=["school","factory","power","mall"];
-var FAC_STYLE={school:{c:"#2c6fbf",ja:"学",en:"S"},factory:{c:"#8a5a1f",ja:"工",en:"F"},power:{c:"#c27c00",ja:"電",en:"P"},mall:{c:"#8a3fa0",ja:"商",en:"M"}};
+/* ---------- 事前確認用の施設（病院・学校・工場・発電所・大型商業施設：OpenStreetMapのデータ） ----------
+ * v2.11：病院を追加。表示する範囲の制限を「ズーム15以上」から「ズーム11以上（市全体が見える）」に広げた。
+ *   データはズーム11のタイル（約16km四方）単位でサーバーから取得（インターネットに常時つながっている前提）。
+ *   ズーム14未満では小さな丸（色で種類が分かる）、14以上では文字入りの四角で表示。種類の絞り込みは右上の「施設：」で。
+ */
+var FAC_Z=11,FAC_MINZOOM=11,FAC_ICONZOOM=14,FAC_TTL=7*24*3600*1000,FAC_KEEP=24,FAC_PAR=4,FAC_MAXTILES=24;
+var FAC_KINDS=["hospital","school","factory","power","mall"];
+var FAC_STYLE={hospital:{c:"#c2185b",ja:"病",en:"H"},school:{c:"#2c6fbf",ja:"学",en:"S"},factory:{c:"#8a5a1f",ja:"工",en:"F"},power:{c:"#c27c00",ja:"電",en:"P"},mall:{c:"#8a3fa0",ja:"商",en:"M"}};
 var facKind=S.get("ss_fac")||"all",facTiles={},facLoading={},facTimer=null,facHinted=false;
-var facLayer=L.layerGroup().addTo(map);
-(function(){ // 端末に保存した施設データ（オフラインでも表示できるように）
-  var c=S.get("ss_fac_tiles")||{},now=Date.now();
+var facLayer=L.layerGroup().addTo(map),facCanvas=L.canvas({padding:.3,tolerance:7});   // 縮小時は数が多いので、軽い canvas で描く（tolerance：小さな丸でも指で押しやすく）
+(function(){ // 端末に保存した施設データ（電波が悪いときも、前に見た範囲は表示できるように）
+  try{localStorage.removeItem("ss_fac_tiles")}catch(e){}   // v2.10 以前の保存（ズーム14・病院なし）は使わない
+  var c=S.get("ss_fac2")||{},now=Date.now();
   Object.keys(c).forEach(function(k){if(c[k]&&now-c[k].t<FAC_TTL)facTiles[k]=c[k]});
 })();
 function saveFac(){
   var ks=Object.keys(facTiles).sort(function(a,b){return facTiles[b].t-facTiles[a].t}).slice(0,FAC_KEEP),o={};
-  ks.forEach(function(k){o[k]=facTiles[k]});S.set("ss_fac_tiles",o);
+  ks.forEach(function(k){o[k]=facTiles[k]});S.set("ss_fac2",o);
 }
-function facTilesInView(){
-  var b=map.getBounds(),n=Math.pow(2,FAC_Z),out=[];
+function facTilesInView(){   // 画面に入るタイル（画面の中心に近い順）
+  var b=map.getBounds(),n=Math.pow(2,FAC_Z),out=[],c=map.getCenter();
   var tx=function(lng){return Math.floor((lng+180)/360*n)};
   var ty=function(lat){var r=lat*Math.PI/180;return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n)};
-  var x0=tx(b.getWest()),x1=tx(b.getEast()),y0=ty(b.getNorth()),y1=ty(b.getSouth());
-  for(var x=x0;x<=x1;x++)for(var y=y0;y<=y1;y++)if(out.length<16)out.push(FAC_Z+"/"+x+"/"+y);
-  return out;
+  var x0=tx(b.getWest()),x1=tx(b.getEast()),y0=Math.max(0,ty(b.getNorth())),y1=Math.min(n-1,ty(b.getSouth())),cx=tx(c.lng),cy=ty(c.lat);
+  for(var x=x0;x<=x1;x++)for(var y=y0;y<=y1;y++)out.push({k:FAC_Z+"/"+(((x%n)+n)%n)+"/"+y,d:(x-cx)*(x-cx)+(y-cy)*(y-cy)});
+  return out.sort(function(a,b){return a.d-b.d}).slice(0,FAC_MAXTILES).map(function(o){return o.k});
 }
 function facOn(){return !!user&&facKind!=="off"}
 function loadFacilities(){
@@ -670,11 +677,12 @@ function loadFacilities(){
     if(!facHinted){facHinted=true;toast(t("facZoom"),3000)}
     return renderFac();
   }
+  var busy=Object.keys(facLoading).length;
   facTilesInView().forEach(function(k){
-    if(facTiles[k]||facLoading[k])return;
-    facLoading[k]=true;
+    if(facTiles[k]||facLoading[k]||busy>=FAC_PAR)return;   // サーバー（Overpass）に負担をかけないよう、同時に4つまで
+    facLoading[k]=true;busy++;
     api("GET","/api/facilities?tile="+k).then(function(r){facTiles[k]={t:Date.now(),items:r.items||[]};saveFac();renderFac()},function(){})
-      .then(function(){delete facLoading[k]});
+      .then(function(){delete facLoading[k];loadFacilities()});   // 残りのタイルを続けて読み込む
   });
   renderFac();
 }
@@ -685,6 +693,26 @@ function facIcon(kind){
       '<text y="5" text-anchor="middle" font-size="14" style="fill:#fff">'+ch+'</text></svg>'});
 }
 function facName(f){return(lang==="en"&&f.nameEn)||f.name||t("facNoName")}
+function openFacPop(f){
+  var sub=I18N[lang]["s_"+f.sub]||t("k_"+f.kind),info=[];
+  if(f.beds)info.push(t("facBeds",{n:f.beds}));   // 病院：病床数・救急（OpenStreetMap に登録がある場合）
+  if(f.emg)info.push(t("facEmg"));
+  var el=document.createElement("div");el.className="fac-pop";
+  el.innerHTML='<small>'+esc(t("k_"+f.kind)+(sub!==t("k_"+f.kind)?" · "+sub:""))+'</small><b>'+esc(facName(f))+'</b>'+(info.length?'<div class="tp-meta">'+esc(info.join(" · "))+'</div>':'')+
+    '<button type="button" class="solid">'+esc(t("facPin"))+'</button><button type="button" data-nav="1">'+esc(t("navGo"))+'</button>';
+  el.querySelector("[data-nav]").onclick=function(){map.closePopup();navGo({lat:f.lat,lng:f.lng,name:facName(f)})};
+  el.querySelector("button").onclick=function(){
+    map.closePopup();
+    var go=function(){var d=blank({lat:f.lat,lng:f.lng});d.name=facName(f)===t("facNoName")?"":facName(f);openSheet(d)};
+    if($("sheet")&&isDirty())confirmDiscard("move",go);else go();
+  };
+  popAt([f.lat,f.lng],el,map.getZoom()>=FAC_ICONZOOM?8:4);   // 左上の表示・右のボタンに隠れない位置に出す
+}
+function facClick(f,e){
+  if(vplacing){placeVictimAt(e.latlng);return}
+  if(placing){map.fire("click",{latlng:e.latlng});return}   // 「地図で選ぶ」の途中は、地図を押したのと同じ
+  openFacPop(f);
+}
 function renderFac(){
   facLayer.clearLayers();
   var attr=t("facAttr")+' &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
@@ -692,32 +720,18 @@ function renderFac(){
   map.attributionControl.removeAttribution(I18N.en.facAttr+' &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>');
   if(!facOn()||map.getZoom()<FAC_MINZOOM)return;
   map.attributionControl.addAttribution(attr);
-  var bb=map.getBounds().pad(0.3),seen={};
+  var bb=map.getBounds().pad(0.3),seen={},big=map.getZoom()>=FAC_ICONZOOM;
   Object.keys(facTiles).forEach(function(k){(facTiles[k].items||[]).forEach(function(f){
     if(seen[f.id]||(facKind!=="all"&&f.kind!==facKind)||!FAC_STYLE[f.kind]||!bb.contains([f.lat,f.lng]))return;
     seen[f.id]=1;
-    var m=L.marker([f.lat,f.lng],{icon:facIcon(f.kind),zIndexOffset:-500,title:facName(f)});
-    m.on("click",function(e){
-      if(vplacing){placeVictimAt(e.latlng);return}
-      var sub=I18N[lang]["s_"+f.sub]||t("k_"+f.kind);
-      var el=document.createElement("div");el.className="fac-pop";
-      el.innerHTML='<small>'+esc(t("k_"+f.kind)+(sub!==t("k_"+f.kind)?" · "+sub:""))+'</small><b>'+esc(facName(f))+'</b><button type="button" class="solid">'+esc(t("facPin"))+'</button><button type="button" data-nav="1">'+esc(t("navGo"))+'</button>';
-      el.querySelector("[data-nav]").onclick=function(){map.closePopup();startNav({lat:f.lat,lng:f.lng,name:facName(f)})};
-      el.querySelector("button").onclick=function(){
-        map.closePopup();
-        var go=function(){var d=blank({lat:f.lat,lng:f.lng});d.name=facName(f)===t("facNoName")?"":facName(f);openSheet(d)};
-        if($("sheet")&&isDirty())confirmDiscard("move",go);else go();
-      };
-      // 左上の表示・右のボタンに隠れないよう、地図を自動で動かしてポップアップを見える位置に出す
-      var tl=$$(".tl")[0],top=tl?tl.offsetTop+tl.offsetHeight+12:80;
-      L.popup({offset:[0,-8],maxWidth:260,autoPan:true,autoPanPaddingTopLeft:L.point(12,top),autoPanPaddingBottomRight:L.point(64,16)})
-        .setLatLng([f.lat,f.lng]).setContent(el).openOn(map);
-    });
+    var m=big?L.marker([f.lat,f.lng],{icon:facIcon(f.kind),zIndexOffset:-500,title:facName(f)})
+      :L.circleMarker([f.lat,f.lng],{renderer:facCanvas,radius:f.kind==="hospital"?6:5,weight:1.5,color:"#fff",fillColor:FAC_STYLE[f.kind].c,fillOpacity:.95,bubblingMouseEvents:false});
+    m.on("click",function(e){facClick(f,e)});
     facLayer.addLayer(m);
   })});
 }
 function renderFacSel(){
-  var opts=[["all","facAll"],["school","facSchool"],["factory","facFactory"],["power","facPower"],["mall","facMall"],["off","facOff"]];
+  var opts=[["all","facAll"],["hospital","facHospital"],["school","facSchool"],["factory","facFactory"],["power","facPower"],["mall","facMall"],["off","facOff"]];
   $("facSel").innerHTML=opts.map(function(o){return '<option value="'+o[0]+'"'+(o[0]===facKind?" selected":"")+'>'+esc(t(o[1]))+'</option>'}).join("");
 }
 $("facSel").onchange=function(){facKind=this.value;S.set("ss_fac",facKind);facHinted=false;loadFacilities()};
@@ -872,6 +886,7 @@ function layoutPanels(){
   var sh=$("sheet"),lp=$("listpanel");
   if(sh)sh.style.maxHeight="";
   if(lp)lp.style.maxHeight="";
+  return;   // v2.11〜 スマホでは編集画面が全画面なので、一覧と高さを分け合わない
   if(!sh||!lp||window.innerWidth>=720)return;
   var H=$("stage").clientHeight,top=parseFloat(lp.style.top)||0,shH=Math.round(H*0.5);
   sh.style.maxHeight=shH+"px";
