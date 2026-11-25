@@ -30,7 +30,7 @@
  *   GET    /api/photos/:id              写真の画像
  *   DELETE /api/photos/:id              写真を削除（撮影した隊と本部）
  *   GET    /api/geocode?q=        住所 → 座標（OpenStreetMap Nominatim を中継）
- *   GET    /api/facilities?tile=14/x/y  学校・工場・発電所・大型商業施設（OpenStreetMap Overpass を中継）
+ *   GET    /api/facilities?tile=11/x/y  病院・学校・工場・発電所・大型商業施設（OpenStreetMap Overpass を中継。v2.11〜ズーム11。14も可）
  *   GET    /api/reverse?lat=&lng= 座標 → 住所
  *   GET    /api/route?from=lat,lng&to=lat,lng  徒歩の道順（FOSSGIS の OSRM サーバーを中継。v2.10〜）
  *
@@ -604,12 +604,13 @@ async function deletePhoto(env, user, id) {
   return json({ ok: true });
 }
 
-// ---------- 事前確認用の施設（学校・工場・発電所・大型商業施設） ----------
-// OpenStreetMap のデータを Overpass API で取得。地図のタイル（ズーム14、約2.4km四方）単位で問い合わせ、7日間キャッシュする。
+// ---------- 事前確認用の施設（病院・学校・工場・発電所・大型商業施設） ----------
+// OpenStreetMap のデータを Overpass API で取得。地図のタイル単位で問い合わせ、7日間キャッシュする。
+//   v2.11〜：ズーム11のタイル（約16km四方）。地図を縮小しても市全体の施設を表示できるように。
+//   ズーム14（約2km四方）は v2.10 以前の画面（端末に古い画面が残っている場合）のために残している
 // 利用規約: https://wiki.openstreetmap.org/wiki/Overpass_API#Public_Overpass_API_instances （常識的な回数で・結果はキャッシュ）
 const OVERPASS = "https://overpass-api.de/api/interpreter";
-const FAC_ZOOM = 14;
-const FAC_MAX = 400; // 1タイルあたりの上限
+const FAC_LIMIT = { 11: 2500, 14: 400 }; // タイルのズーム → 1タイルあたりの上限
 
 function tileBBox(z, x, y) {
   const n = 2 ** z;
@@ -619,6 +620,7 @@ function tileBBox(z, x, y) {
 }
 
 function facilityKind(tg) {
+  if (tg.amenity === "hospital" || tg.healthcare === "hospital") return "hospital"; // 病院（診療所・クリニックは数が多すぎるので含めない）
   if (/^(school|kindergarten|university|college)$/.test(tg.amenity || "")) return "school";
   if (tg.power === "plant" || tg.power === "substation") return "power";
   if (/^(mall|department_store)$/.test(tg.shop || "") || tg.building === "retail") return "mall";
@@ -628,12 +630,15 @@ function facilityKind(tg) {
 
 async function facilities(url, env, ctx) {
   const m = (url.searchParams.get("tile") || "").match(/^(\d+)\/(\d+)\/(\d+)$/);
-  if (!m || Number(m[1]) !== FAC_ZOOM) return err("invalid", 400);
-  const x = Number(m[2]), y = Number(m[3]), n = 2 ** FAC_ZOOM;
+  const z = m ? Number(m[1]) : 0;
+  if (!FAC_LIMIT[z]) return err("invalid", 400);
+  const x = Number(m[2]), y = Number(m[3]), n = 2 ** z;
   if (x >= n || y >= n) return err("invalid", 400);
-  const b = tileBBox(FAC_ZOOM, x, y), bb = `${b.s.toFixed(6)},${b.w.toFixed(6)},${b.n.toFixed(6)},${b.e.toFixed(6)}`;
+  const b = tileBBox(z, x, y), bb = `${b.s.toFixed(6)},${b.w.toFixed(6)},${b.n.toFixed(6)},${b.e.toFixed(6)}`;
   // 名前のない小さな工場の建物や変電設備は数が多すぎるので、名前があるものだけにする
-  const q = `[out:json][timeout:25];(
+  const q = `[out:json][timeout:${z === 11 ? 90 : 25}];(
+nwr["amenity"="hospital"](${bb});
+nwr["healthcare"="hospital"](${bb});
 nwr["amenity"~"^(school|kindergarten|university|college)$"](${bb});
 nwr["power"="plant"](${bb});
 nwr["power"="substation"]["name"](${bb});
@@ -642,9 +647,9 @@ nwr["building"="retail"]["name"](${bb});
 nwr["man_made"="works"](${bb});
 nwr["landuse"="industrial"]["name"](${bb});
 nwr["building"~"^(industrial|factory)$"]["name"](${bb});
-);out center tags ${FAC_MAX};`;
+);out center tags ${FAC_LIMIT[z]};`;
 
-  const cacheKey = new Request(`https://facilities.cache/v1/${FAC_ZOOM}/${x}/${y}`);
+  const cacheKey = new Request(`https://facilities.cache/v2/${z}/${x}/${y}`); // v2：病院を追加したので、古いキャッシュは使わない
   const cache = caches.default;
   const hit = await cache.match(cacheKey);
   if (hit) return new Response(hit.body, { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
@@ -666,17 +671,23 @@ nwr["building"~"^(industrial|factory)$"]["name"](${bb});
     const key = el.type + el.id;
     if (seen.has(key)) continue;
     seen.add(key);
-    list.push({
+    const it = {
       id: key,
       kind,
-      sub: tg.amenity || tg.power || tg.shop || tg.man_made || tg.building || tg.landuse || "",
+      sub: tg.amenity || tg.healthcare || tg.power || tg.shop || tg.man_made || tg.building || tg.landuse || "",
       name: (tg["name:ja"] || tg.name || "").slice(0, 80),
       nameEn: (tg["name:en"] || "").slice(0, 80),
       lat: Math.round(lat * 1e6) / 1e6,
       lng: Math.round(lng * 1e6) / 1e6,
-    });
+    };
+    if (kind === "hospital") {
+      const beds = parseInt(tg.beds, 10); // 病床数（OpenStreetMap に登録されている場合だけ）
+      if (beds > 0 && beds < 10000) it.beds = beds;
+      if (tg.emergency === "yes") it.emg = 1; // 救急外来あり
+    }
+    list.push(it);
   }
-  const body = JSON.stringify({ tile: `${FAC_ZOOM}/${x}/${y}`, items: list });
+  const body = JSON.stringify({ tile: `${z}/${x}/${y}`, items: list });
   const res = new Response(body, { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=604800" } });
   ctx.waitUntil(cache.put(cacheKey, res.clone()));
   return new Response(body, { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });

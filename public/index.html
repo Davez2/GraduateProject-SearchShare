@@ -160,7 +160,11 @@ input[type=datetime-local]{font-size:15px;padding:.3em 0}
 .pin-ic .pulse{transform-box:fill-box;transform-origin:center}
 @media (prefers-reduced-motion:no-preference){.pin-ic .pulse{animation:pls 1.8s ease-out infinite}#map.nopulse .pulse{animation:none;opacity:0}}
 @keyframes pls{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.7);opacity:0}}
-@media (max-width:719px){.sheet{max-height:62%}}
+@media (max-width:719px){   /* v2.11 スマホではピンの編集画面を全画面で表示（入力欄を広く使えるように） */
+  .sheet{position:fixed;inset:0;max-height:none;border-top:0;box-shadow:none;z-index:1003}
+  .sheet .sh-top{padding-top:calc(12px + env(safe-area-inset-top,0px))}
+  #stage:has(.sheet:not(.hide)) .listpanel{display:none}   /* 一覧は編集画面を閉じると戻る */
+}
 .cfm-msg{margin:0 0 6px;font-size:15px;line-height:1.7}
 .mrow .del{color:var(--warn);border-color:var(--warn)}
 .mrow .del:hover{background:var(--warn);color:var(--hi-ink)}
