@@ -835,7 +835,31 @@ async function listPositions(env) {
 }
 
 // ---------- ルーティング ----------
+// ---------- セキュリティ用ヘッダー（/api/* の応答すべてに付ける） ----------
+// 静的ファイル側のヘッダーは public/_headers に書いてある。
+// API は JSON と写真しか返さないので、CSP は「何も読み込ませない・埋め込ませない」でよい。
+const API_SECURITY_HEADERS = {
+  "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+  "X-Content-Type-Options": "nosniff", // 写真を別の種類（HTMLなど）として解釈させない
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Strict-Transport-Security": "max-age=31536000",
+};
+function withSecurityHeaders(res) {
+  const out = new Response(res.body, res); // キャッシュ由来の応答はヘッダーを変更できないので作り直す
+  for (const [k, v] of Object.entries(API_SECURITY_HEADERS)) out.headers.set(k, v);
+  return out;
+}
+
 export default {
+  async fetch(request, env, ctx) {
+    const res = await app.fetch(request, env, ctx);
+    if (!new URL(request.url).pathname.startsWith("/api/")) return res; // 静的ファイルは _headers が担当
+    return withSecurityHeaders(res);
+  },
+};
+
+const app = {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;

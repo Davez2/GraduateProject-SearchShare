@@ -10,7 +10,7 @@
  *
  * アプリを更新したら VERSION を上げる → 古いキャッシュが削除される
  */
-const VERSION = "v2.10.0";
+const VERSION = "v2.10.1";
 const APP_CACHE = "app-" + VERSION;
 const TILE_CACHE = "tiles-v1";
 const TILE_MAX = 1500; // 約1500枚 ≒ 数十MB程度
@@ -19,6 +19,7 @@ const NET_TIMEOUT_MS = 4000; // 電波が弱いとき、これ以上待たずに
 const APP_FILES = [
   "/",
   "/manifest.json",
+  "/app.js",
   "/vendor/leaflet/leaflet.js",
   "/vendor/leaflet/leaflet.css",
   "/vendor/qrcodejs/qrcode.min.js",
